@@ -9,6 +9,7 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "experimentalDecorators": true,
+    "removeComments": true, 
     "emitDecoratorMetadata": true,
     "inlineSourceMap": true,
     "noImplicitThis": true,

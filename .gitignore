@@ -1,2 +1,11 @@
-node_modules
+# 文件夹
+node_modules/
+.vscode
+dist/
 
+
+
+# 指定文件
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
