@@ -7,7 +7,8 @@
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "echo 1"
+    "build": "echo 1",
+    "postpublish": "git add -A && git commit -m '' && npm version patch && npm publish"
   },
   "author": "fancy-xiaolu",
   "license": "ISC",
