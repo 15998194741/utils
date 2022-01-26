@@ -1,6 +1,6 @@
 {
   "name": "index-system",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "一些实用工具",
   "private": false,
   "main": "dist/index.js",
@@ -30,7 +30,7 @@
   "dependencies": {
     "xlsx": "^0.17.5"
   },
-  "repository":{
+  "repository": {
     "type": "git",
     "url": "https://github.com/15998194741/utils.git"
   },
