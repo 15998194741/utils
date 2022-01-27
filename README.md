@@ -1,5 +1,6 @@
 features: copy, type judgment, check rules
 
+```json
 import { copy } from "./src/utils/copy";
 /**
  * @param {any} value A JavaScript value, usually an object or array, to be converted.
@@ -37,5 +38,6 @@ import { whatType } from './src/utils/type'
  * @returns { string } "number" | "string" | "array" | "object" | "set" | "map" | "regexp" | "boolean" | "symbol" | "function" | "Undefined" | "null" | "htmldocument" | "htmlcollection"
  */
 whatType({}) 
+```
 
 
