@@ -1,6 +1,6 @@
 {
   "name": "index-system",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "一些实用工具",
   "private": false,
   "main": "dist/index.js",
@@ -39,7 +39,9 @@
   "bugs": {
     "url": "https://github.com/15998194741/utils/issues"
   },
-  "keywords":[
-    "copy","xlsx","regular"
+  "keywords": [
+    "copy",
+    "xlsx",
+    "regular"
   ]
 }
