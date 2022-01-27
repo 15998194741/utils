@@ -27,3 +27,11 @@ import { readExcelToJSON } from "./src/excel";
  * @returns {boolean}
  */
 readExcelToJSON
+
+
+import { whatType } from './src/utils/type'
+/**
+ * @param {any} value
+ * @returns { string } "number" | "string" | "array" | "object" | "set" | "map" | "regexp" | "boolean" | "symbol" | "function" | "Undefined" | "null" | "htmldocument" | "htmlcollection"
+ */
+whatType({}) 
