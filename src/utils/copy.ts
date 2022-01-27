@@ -1,4 +1,5 @@
-function copy<T>(arg:T):T{
+type arg = any[] | Record<any, any>
+function copy(arg: arg): any[] | Record<any, any> {
   return JSON.parse(JSON.stringify(arg))
 }
 

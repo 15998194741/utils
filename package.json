@@ -38,5 +38,8 @@
   "homepage": "https://github.com/15998194741/utils",
   "bugs": {
     "url": "https://github.com/15998194741/utils/issues"
-  }
+  },
+  "keywords":[
+    "copy","xlsx","regular"
+  ]
 }
