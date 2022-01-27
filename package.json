@@ -8,7 +8,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "echo 1",
-    "postpublish": "git add -A && git commit -m '' && npm version patch  && git add -A && git commit -m '' && git push && npm publish"
+    "versionAdd": "npm version patch"
   },
   "author": "fancy-xiaolu",
   "license": "ISC",
