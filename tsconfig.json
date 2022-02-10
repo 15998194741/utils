@@ -20,7 +20,8 @@
     "declaration": true,
     "typeRoots": ["./typings", "./node_modules/@types"],
     "suppressImplicitAnyIndexErrors": true,
-    "outDir": "dist"
+    "outDir": "dist",
+    "resolveJsonModule": true
   },
   "exclude": [
     "dist",
