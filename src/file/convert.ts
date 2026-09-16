@@ -1,76 +1,49 @@
-export function fileToBase64(file: File, callback: () => string): void
-export function fileToBase64(file: File): Promise<string>
-export function fileToBase64(...args: any): any {
-  let [file, callback] = args;
-  callback = callback ?? '';
-  let reader = new FileReader();
-  let res = new Promise((res) => {
-    reader.onload = () => {
-      (callback && callback(reader.result)) ?? res(reader.result)
-    }
+function readBlob(blob: Blob, dataURL: true): Promise<string>
+function readBlob(blob: Blob, dataURL: false): Promise<ArrayBuffer>
+function readBlob(blob: Blob, dataURL: boolean): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = () => reject(reader.error ?? new Error('File read failed'))
+    reader.onabort = () => reject(new Error('File read aborted'))
+    if (dataURL) reader.readAsDataURL(blob)
+    else reader.readAsArrayBuffer(blob)
   })
-  reader.readAsDataURL(file);
-  return res
 }
 
-export function base64Tofile(base: string, filename: string = 'png'): File {
-  var arr = base.split(','), mime = arr[0].match(/:(.*?);/)[1],
-    bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
-  while (n--) {
-    u8arr[n] = bstr.charCodeAt(n);
-  }
-  return new File([u8arr], filename, { type: mime });
+/** Both overloads return a Promise so read errors can be handled. */
+export function fileToBase64(file: File, callback?: (data: string) => void): Promise<string> {
+  return readBlob(file, true).then(data => { if (callback) callback(data); return data })
 }
 
+export function base64ToBlob(base64: string, mimeType?: string | null): Blob {
+  const match = /^data:([^,]*);base64,([\s\S]*)$/i.exec(base64)
+  if (!match) throw new TypeError('Expected a base64 Data URL')
+  const binary = atob(match[2])
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return new Blob([bytes], { type: mimeType ?? (match[1].split(';')[0] || 'text/plain') })
+}
 
-export function bolbToFile(blob: Blob, fileName = '', type = 'image/png'): File {
-  // URL.createObjectURL(File)
+export function base64ToFile(base: string, filename = 'png'): File {
+  const blob = base64ToBlob(base)
+  return new File([blob], filename, { type: blob.type })
+}
+export function blobToFile(blob: Blob, fileName = '', type = blob.type || 'image/png'): File {
   return new File([blob], fileName, { type })
 }
-
-export function fileToBolb(file: File): Promise<any>
-export function fileToBolb(file: File, callback: (data: Blob) => void): void
-export function fileToBolb(...args: any): any {
-  let [file, callback] = args;
-  let reader = new FileReader();
-  let res = new Promise((res) => {
-    reader.onload = (event) => {
-      let blob = new Blob([event.target.result], { type: file.type });
-      (callback && callback(blob)) ?? res(blob)
-    }
+export function fileToBlob(file: File, callback?: (data: Blob) => void): Promise<Blob> {
+  return readBlob(file, false).then(data => {
+    const blob = new Blob([data], { type: file.type })
+    if (callback) callback(blob)
+    return blob
   })
-  reader.readAsArrayBuffer(file)
-  return res
-
 }
-
-export function fileToUrl(file: File): string {
-  return URL.createObjectURL(file)
+export function fileToUrl(file: File): string { return URL.createObjectURL(file) }
+export function blobToDataURL(blob: Blob, callback?: (data: string) => void): Promise<string> {
+  return readBlob(blob, true).then(data => { if (callback) callback(data); return data })
 }
-
-export function base64ToBlob(base64: string, mimeType = null): Blob {
-  const arr = base64.split(','),
-    defaultMimeType = arr[0].match(/:(.*?);/)[1],
-    bStr = atob(arr[1]);
-  let n = bStr.length,
-    u8arr = new Uint8Array(n)
-  while (n--) {
-    u8arr[n] = bStr.charCodeAt(n)
-  }
-  return new Blob([u8arr], { type: mimeType || defaultMimeType })
-}
-
-
-export function blobToDataURL(blob: Blob, callback: (returnValue: any) => any): void
-export function blobToDataURL(blob: Blob): Promise<any>
-export function blobToDataURL(...args: any): any {
-  let [blob, callback] = args;
-  let reader = new FileReader();
-  let res = new Promise((res) => {
-    reader.onload = (e) => {
-      (callback && callback(e.target.result)) ?? res(e.target.result)
-    }
-  })
-  reader.readAsDataURL(blob);
-  return res
-}
+// Legacy names remain available.
+export const base64Tofile = base64ToFile
+export const bolbToFile = blobToFile
+export const fileToBolb = fileToBlob

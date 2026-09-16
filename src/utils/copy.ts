@@ -1,22 +1,34 @@
-type arg = any[] | Record<any, any>
-function copy(arg: arg): any[] | Record<any, any> {
-  return JSON.parse(JSON.stringify(arg))
+/** JSON-compatible object and array copy. */
+export function copy<T extends object>(value: T): T {
+  return JSON.parse(JSON.stringify(value))
 }
 
-copy.deepcopy = <T extends Array<T> | any>(sourceData: T): T => {
-  if (Array.isArray(sourceData)) {
-    return sourceData.map(item => copy.deepcopy(item)) as T
-  }
-  const obj: T = {} as T
-  for (let key in sourceData) {
-    if ((typeof sourceData[key] === 'object') && sourceData[key] !== null) {
-      obj[key] = copy.deepcopy(sourceData[key])
-    } else {
-      obj[key] = sourceData[key]
+/** Copies plain objects, arrays, Date, RegExp, Map and Set, including cycles.
+ * Other instances and functions retain their original identity.
+ */
+export function deepClone<T>(value: T): T {
+  const seen = new WeakMap<object, any>()
+  function clone(input: any): any {
+    if (input === null || typeof input !== 'object') return input
+    if (seen.has(input)) return seen.get(input)
+    let output: any
+    if (input instanceof Date) output = new Date(input.getTime())
+    else if (input instanceof RegExp) { output = new RegExp(input.source, input.flags); output.lastIndex = input.lastIndex }
+    else if (input instanceof Map) output = new Map()
+    else if (input instanceof Set) output = new Set()
+    else if (Array.isArray(input)) output = new Array(input.length)
+    else if (Object.getPrototypeOf(input) === Object.prototype || Object.getPrototypeOf(input) === null) output = Object.create(Object.getPrototypeOf(input))
+    else return input
+    seen.set(input, output)
+    if (input instanceof Map) input.forEach((v, k) => output.set(clone(k), clone(v)))
+    if (input instanceof Set) input.forEach(v => output.add(clone(v)))
+    for (const key of Reflect.ownKeys(input)) {
+      const descriptor = Object.getOwnPropertyDescriptor(input, key)!
+      if ('value' in descriptor) descriptor.value = clone(descriptor.value)
+      Object.defineProperty(output, key, descriptor)
     }
+    return output
   }
-  return obj
+  return clone(value)
 }
-export {
-  copy
-}
+copy.deepcopy = deepClone

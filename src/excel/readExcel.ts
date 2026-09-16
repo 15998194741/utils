@@ -1,11 +1,15 @@
-import xlsx from 'xlsx';
+import xlsx from 'xlsx'
 
-export function readExcelToJSON(filePath: string,sheetName?: string): Record<string, any>
-export function readExcelToJSON(file: File, sheetName?: string): Record<string, any>
-export function readExcelToJSON(...args: any):Record<string,any>{
-  let [file,sheetName] = args;
-  let workbook = xlsx.readFile(file)
-  let sheet = sheetName ?? workbook.SheetNames[0];
-  let data = xlsx.utils.sheet_to_json(sheet)
-  return data;
+function rows<T>(workbook: xlsx.WorkBook, sheetName?: string): T[] {
+  const name = sheetName ?? workbook.SheetNames[0]
+  const sheet = workbook.Sheets[name]
+  if (!sheet) throw new Error(`Worksheet not found: ${name}`)
+  return xlsx.utils.sheet_to_json<T>(sheet)
+}
+
+export function readExcelToJSON<T = Record<string, any>>(file: string, sheetName?: string): T[]
+export function readExcelToJSON<T = Record<string, any>>(file: File, sheetName?: string): Promise<T[]>
+export function readExcelToJSON<T = Record<string, any>>(file: string | File, sheetName?: string): T[] | Promise<T[]> {
+  if (typeof file === 'string') return rows<T>(xlsx.readFile(file), sheetName)
+  return file.arrayBuffer().then(buffer => rows<T>(xlsx.read(buffer, { type: 'array' }), sheetName))
 }
