@@ -1,32 +1,34 @@
 # index-system
 
-使用 TypeScript 编写的 JavaScript 工具库，包含数组与对象处理、字符串转换、数值统计、排序、异步控制、查询参数、树结构、格式校验、文件转换和 Excel 读取工具。
+English | [简体中文](./README.zh-CN.md)
+
+A JavaScript utility library written in TypeScript, with helpers for arrays, objects, strings, numbers, sorting, function control, asynchronous operations, query parameters, trees, validation, browser files, and Excel reading.
 
 [npm](https://www.npmjs.com/package/index-system) · [GitHub](https://github.com/15998194741/utils) · [Issues](https://github.com/15998194741/utils/issues)
 
-> 本文描述当前仓库源码。新增 API 需要发布新版本后才能通过 npm 安装使用，请确认所安装版本包含对应功能。
+> This document describes the current repository source. New APIs become available through npm only after a new release. Check that your installed version includes the features you need.
 
-## 目录
+## Contents
 
-- [安装与使用](#安装与使用)
+- [Installation and usage](#installation-and-usage)
 - [API](#api)
-- [兼容性与已知限制](#兼容性与已知限制)
-- [本地开发](#本地开发)
-- [发布](#发布)
-- [参与贡献](#参与贡献)
-- [许可证](#许可证)
+- [Compatibility and known limitations](#compatibility-and-known-limitations)
+- [Local development](#local-development)
+- [Publishing](#publishing)
+- [Contributing](#contributing)
+- [License](#license)
 
-## 安装与使用
+## Installation and usage
 
 ```bash
 npm install index-system
-# 或
+# Or
 pnpm add index-system
-# 或
+# Or
 yarn add index-system
 ```
 
-TypeScript 或使用构建工具的项目可以使用命名导入：
+Use named imports in TypeScript projects or projects with a build tool:
 
 ```ts
 import { unique, quickSort, deepClone, whatType } from 'index-system';
@@ -37,28 +39,28 @@ const cloned = deepClone({ tags: ['TypeScript'] });
 whatType(cloned); // 'object'
 ```
 
-CommonJS：
+CommonJS:
 
 ```js
 const { unique } = require('index-system');
 unique([1, 1, 2]); // [1, 2]
 ```
 
-当前输出为 CommonJS，JavaScript 入口为 `dist/index.js`，类型入口为 `dist/index.d.ts`。默认导出是字符串 `欢迎使用`，工具函数通过命名导出使用。本文不承诺单独的 ESM 构建或按需打包能力。
+The current build outputs CommonJS. The JavaScript entry is `dist/index.js`, and the type entry is `dist/index.d.ts`. The default export is the string `欢迎使用`; utilities are named exports. A separate ESM build and tree-shaking support are not guaranteed.
 
 ## API
 
-### 数组
+### Arrays
 
-| 函数 | 返回值与行为 |
+| Function | Return value and behavior |
 | --- | --- |
-| `unique(values)` | 去重后的新数组，保留首次出现顺序 |
-| `chunk(values, size)` | 按正整数 size 分块，返回二维数组 |
-| `groupBy(values, key)` | 按回调结果分组，返回 Map |
-| `intersection(left, right)` | 去重后的交集，保留 left 顺序 |
-| `difference(left, right)` | 去重后的差集，保留 left 顺序 |
+| `unique(values)` | A new deduplicated array, preserving first occurrence order |
+| `chunk(values, size)` | An array of chunks; size must be a positive integer |
+| `groupBy(values, key)` | A Map grouped by the callback result |
+| `intersection(left, right)` | A deduplicated intersection in left order |
+| `difference(left, right)` | A deduplicated difference in left order |
 
-不修改输入。集合操作采用 Set 的相等规则：NaN 可以去重，对象按引用比较。
+Inputs are not mutated. Set operations use Set equality: NaN is deduplicated, and objects are compared by reference.
 
 ```ts
 import { chunk, groupBy, difference } from 'index-system';
@@ -68,18 +70,18 @@ groupBy([{ role: 'admin' }], user => user.role).get('admin');
 difference([1, 2, 3], [2]); // [1, 3]
 ```
 
-### 对象与复制
+### Objects and copying
 
-| 函数 | 返回值与行为 |
+| Function | Return value and behavior |
 | --- | --- |
-| `pick(object, keys)` | 选取自有属性，保留选取键的 TypeScript 类型 |
-| `omit(object, keys)` | 排除指定键，复制其余可枚举自有属性 |
-| `get<T>(object, path, fallback?)` | 仅沿自有属性取值，返回 T 或 undefined |
-| `deepMerge(...objects)` | 递归合并普通对象，返回新对象，数组替换 |
-| `isEmpty(value)` | 判断内容或可枚举自有属性是否为空 |
-| `copy(value)` | 通过 JSON 序列化复制对象或数组 |
-| `deepClone(value)` | 递归复制支持的类型，保留泛型类型 |
-| `copy.deepcopy(value)` | deepClone 的兼容入口 |
+| `pick(object, keys)` | Selects own properties and preserves the selected TypeScript keys |
+| `omit(object, keys)` | Copies enumerable own properties except the specified keys |
+| `get<T>(object, path, fallback?)` | Reads through own properties only; returns T or undefined |
+| `deepMerge(...objects)` | Recursively merges plain objects into a new object; arrays replace |
+| `isEmpty(value)` | Checks contents or enumerable own properties for emptiness |
+| `copy(value)` | Copies an object or array through JSON serialization |
+| `deepClone(value)` | Recursively copies supported types and preserves the generic type |
+| `copy.deepcopy(value)` | Compatibility entry for deepClone |
 
 ```ts
 import { pick, get, deepMerge, deepClone } from 'index-system';
@@ -91,24 +93,24 @@ deepMerge({ user: { name: 'Alice' } }, { user: { score: 90 } });
 const cloned = deepClone({ items: [1, null], createdAt: new Date() });
 ```
 
-get 支持点分路径或显式键数组，不解析方括号语法；缺失或 undefined 使用默认值，null 保持不变。pick 和 omit 支持 Symbol 键。
+get accepts dotted paths or explicit key arrays; bracket notation is not parsed. Missing properties and undefined use the fallback, while null is preserved. pick and omit support Symbol keys.
 
-deepClone 支持普通对象、数组、Date、RegExp、Map、Set、循环引用、Symbol 属性和属性描述符。函数和其他类实例保留原引用。
+deepClone supports plain objects, arrays, Date, RegExp, Map, Set, circular references, Symbol properties, and property descriptors. Functions and other class instances retain their original references.
 
-deepMerge 合并可枚举自有属性，不修改输入；读取 getter，不保留属性描述符，返回 `Record<string, any>`。普通对象递归路径出现循环时抛错，其他值按 deepClone 规则处理。
+deepMerge merges enumerable own properties without mutating inputs. It reads getters, does not preserve property descriptors, and returns `Record<string, any>`. Cycles encountered during plain-object recursion throw; other values follow deepClone semantics.
 
-isEmpty 将 null、undefined、空字符串、空数组、空 Map/Set，以及无可枚举自有属性的对象视为空；0 和 false 不为空。copy 仅适合 JSON 数据，不保留特殊类型；循环引用和 BigInt 会导致失败。
+isEmpty considers null, undefined, empty strings, empty arrays, empty Maps/Sets, and objects without enumerable own properties empty. Zero and false are not empty. copy is intended for JSON-compatible data and does not preserve special types; circular references and BigInt cause failure.
 
-### 类型与相等比较
+### Types and equality
 
-| 函数 | 行为 |
+| Function | Behavior |
 | --- | --- |
-| `whatType(value)` | 返回小写类型名称，例如 array、object、null、undefined、map |
-| `isEqual(a, b)` | 深比较普通对象和数组的可枚举自有属性，支持循环引用 |
-| `shallowEqual(a, b)` | 比较一层可枚举自有属性，属性值使用 Object.is |
-| `arrayIsEqual(...arrays)` | 深比较多个数组 |
+| `whatType(value)` | Returns a lowercase type name such as array, object, null, undefined, or map |
+| `isEqual(a, b)` | Deeply compares enumerable own properties of plain objects and arrays, including cycles |
+| `shallowEqual(a, b)` | Compares one level of enumerable own properties using Object.is for values |
+| `arrayIsEqual(...arrays)` | Deeply compares multiple arrays |
 
-isEqual 比较对象原型；Date、RegExp 按值比较，其他特殊实例按引用比较。whatType 基于 Object.prototype.toString。
+isEqual checks object prototypes. Date and RegExp are compared by value; other special instances by reference. whatType uses Object.prototype.toString.
 
 ```ts
 import { whatType, isEqual, shallowEqual } from 'index-system';
@@ -118,16 +120,16 @@ isEqual({ a: 1, b: 2 }, { b: 2, a: 1 }); // true
 shallowEqual({ user: {} }, { user: {} }); // false
 ```
 
-### 字符串
+### Strings
 
-| 函数 | 行为 |
+| Function | Behavior |
 | --- | --- |
-| `camelCase(text)` | 转为 camelCase |
-| `kebabCase(text)` | 转为 kebab-case |
-| `capitalize(text)` | 将首个码点转为大写 |
-| `truncate(text, length, suffix = '...')` | 截断到非负整数长度，包含后缀 |
+| `camelCase(text)` | Converts to camelCase |
+| `kebabCase(text)` | Converts to kebab-case |
+| `capitalize(text)` | Uppercases the first code point |
+| `truncate(text, length, suffix = '...')` | Truncates to a non-negative integer length, including the suffix |
 
-大小写转换识别空格、下划线、连字符和英文大小写边界。截断按 Unicode 码点计算，组合 emoji 可能包含多个码点；后缀超过长度时也会被截断。
+Case conversion recognizes spaces, underscores, hyphens, and English case boundaries. Truncation counts Unicode code points; a compound emoji may contain multiple code points. The suffix is also truncated if it exceeds the limit.
 
 ```ts
 import { camelCase, kebabCase, truncate } from 'index-system';
@@ -137,16 +139,16 @@ kebabCase('XMLHttpRequest'); // 'xml-http-request'
 truncate('hello world', 8); // 'hello...'
 ```
 
-### 数值
+### Numbers
 
-| 函数 | 行为 |
+| Function | Behavior |
 | --- | --- |
-| `clamp(value, min, max)` | 限制到指定区间 |
-| `inRange(value, min, max)` | 判断是否位于闭区间，包含两端 |
-| `sum(values)` | 求和，空数组返回 0 |
-| `average(values)` | 平均值，空数组返回 NaN |
+| `clamp(value, min, max)` | Constrains a value to the range |
+| `inRange(value, min, max)` | Checks an inclusive range |
+| `sum(values)` | Returns the sum; empty input returns 0 |
+| `average(values)` | Returns the mean; empty input returns NaN |
 
-上下界不能为 NaN，且必须满足 min <= max。使用 JavaScript 浮点运算，不提供精确十进制计算。
+Bounds must not be NaN and must satisfy min <= max. These helpers use JavaScript floating-point arithmetic, not exact decimal arithmetic.
 
 ```ts
 import { clamp, inRange, average } from 'index-system';
@@ -156,19 +158,19 @@ inRange(100, 0, 100); // true
 average([80, 90]); // 85
 ```
 
-### 排序
+### Sorting
 
-所有排序函数返回新的浅拷贝数组，不修改输入。数字默认升序；其他类型需提供比较函数。比较结果为负数表示前者排在前面，零表示相等，正数表示后者排在前面。默认数字比较不适用于 NaN。
+All sorting functions return new shallow-copy arrays without mutating inputs. Numbers default to ascending order; other types require a comparator. A negative result places the first value earlier, zero indicates equality, and a positive result places it later. The default numeric comparator is not suitable for NaN.
 
-| 函数 | 算法 | 平均 / 最坏时间复杂度 | 稳定 |
+| Function | Algorithm | Average / worst time complexity | Stable |
 | --- | --- | --- | --- |
-| `bubbleSort` | 冒泡 | O(n²) / O(n²) | 是 |
-| `selectionSort` | 选择 | O(n²) / O(n²) | 否 |
-| `insertionSort` | 插入 | O(n²) / O(n²) | 是 |
-| `shellSort` | 希尔，折半步长 | 取决于输入 / O(n²) | 否 |
-| `mergeSort` | 归并 | O(n log n) / O(n log n) | 是 |
-| `quickSort` | 三路快速 | O(n log n) / O(n²) | 否 |
-| `heapSort` | 堆 | O(n log n) / O(n log n) | 否 |
+| `bubbleSort` | Bubble | O(n²) / O(n²) | Yes |
+| `selectionSort` | Selection | O(n²) / O(n²) | No |
+| `insertionSort` | Insertion | O(n²) / O(n²) | Yes |
+| `shellSort` | Shell, halving gaps | Input-dependent / O(n²) | No |
+| `mergeSort` | Merge | O(n log n) / O(n log n) | Yes |
+| `quickSort` | Three-way quicksort | O(n log n) / O(n²) | No |
+| `heapSort` | Heap | O(n log n) / O(n log n) | No |
 
 ```ts
 import { quickSort, mergeSort } from 'index-system';
@@ -178,15 +180,15 @@ quickSort([3, 1, 2], (a, b) => b - a); // [3, 2, 1]
 mergeSort([{ score: 90 }, { score: 80 }], (a, b) => a.score - b.score);
 ```
 
-### 函数控制
+### Function control
 
-| 函数 | 行为 |
+| Function | Behavior |
 | --- | --- |
-| `debounce(fn, delay)` | 尾部防抖，使用最后一次调用的参数和 this |
-| `throttle(fn, delay)` | 首次立即执行，间隔内的调用在尾部使用最新参数执行 |
-| `once(fn)` | 缓存首次成功返回的结果 |
+| `debounce(fn, delay)` | Trailing debounce with the latest arguments and this |
+| `throttle(fn, delay)` | Executes immediately on the first call, then trails with the latest pending arguments |
+| `once(fn)` | Caches the first successfully returned result |
 
-防抖和节流的普通调用返回 void，提供 cancel() 取消待执行调用、flush() 执行待处理调用并返回其结果，无待处理调用时返回 undefined。once 同步抛错后可重试；返回的 Promise（包括拒绝状态）会被缓存。
+Ordinary debounce and throttle calls return void. cancel() cancels pending work; flush() executes a pending call and returns its result, or undefined if nothing is pending. once can retry after a synchronous throw; returned Promises are cached, including rejected Promises.
 
 ```ts
 import { debounce } from 'index-system';
@@ -194,20 +196,20 @@ import { debounce } from 'index-system';
 const save = debounce((text: string) => console.log(text), 300);
 save('draft');
 save('final');
-save.flush(); // 立即输出 final
+save.flush(); // Logs final immediately
 save.cancel();
 ```
 
-### 异步控制
+### Asynchronous control
 
-| 函数 | 行为 |
+| Function | Behavior |
 | --- | --- |
-| `sleep(delay)` | 返回 Promise<void>，等待指定毫秒数 |
-| `retry(task, options?)` | 默认额外重试 3 次，delay 默认 0；task 接收从 1 开始的尝试次数 |
-| `withTimeout(promise, delay)` | 超时后拒绝，不取消底层操作 |
-| `mapLimit(values, limit, mapper)` | 限制并发，结果保持输入顺序，mapper 接收值和索引 |
+| `sleep(delay)` | Returns Promise<void> after the specified milliseconds |
+| `retry(task, options?)` | Defaults to 3 additional retries and delay 0; task receives a 1-based attempt number |
+| `withTimeout(promise, delay)` | Rejects on timeout without cancelling the underlying operation |
+| `mapLimit(values, limit, mapper)` | Limits concurrency and preserves result order; mapper receives the value and index |
 
-retries 必须为非负整数，limit 必须为正整数。mapLimit 失败后停止启动新任务，已启动任务继续运行。所有延迟必须为 0 到 2147483647 之间的有限毫秒数。
+retries must be a non-negative integer; limit must be a positive integer. mapLimit stops scheduling new work after failure; in-flight tasks continue. All delays must be finite milliseconds between 0 and 2147483647.
 
 ```ts
 import { retry, mapLimit } from 'index-system';
@@ -219,30 +221,30 @@ async function example() {
 }
 ```
 
-### URL 查询参数
+### URL query parameters
 
-parseQuery(query) 接收查询字符串，可带 ? 前缀，不接收完整 URL。返回无原型对象，重复键返回字符串数组。
+parseQuery(query) accepts a query string with an optional ? prefix, not a full URL. It returns an object with a null prototype; repeated keys produce string arrays.
 
-stringifyQuery(object) 返回不带 ? 的字符串：数组生成重复键，null 转为空字符串，undefined 省略，数字和布尔值转为字符串。使用 URLSearchParams 编解码，空格编码为 +。
+stringifyQuery(object) returns a string without a leading ?. Arrays repeat keys, null becomes an empty string, undefined is omitted, and numbers and booleans become strings. Encoding and decoding use URLSearchParams; spaces are encoded as +.
 
 ```ts
 import { parseQuery, stringifyQuery } from 'index-system';
 
-parseQuery('?tag=a&tag=b'); // { tag: ['a', 'b'] }，无原型对象
+parseQuery('?tag=a&tag=b'); // { tag: ['a', 'b'] }, with a null prototype
 stringifyQuery({ tag: ['a', 'b'], page: 1 }); // 'tag=a&tag=b&page=1'
 ```
 
-### 树结构
+### Trees
 
-| 函数 | 行为 |
+| Function | Behavior |
 | --- | --- |
-| `listToTree(list, { getId, getParentId })` | 浅拷贝节点，生成 children 数组，保留输入顺序 |
-| `treeToList(roots, getChildren)` | 先序遍历，返回节点引用，保留 children |
-| `findTreeNode(roots, predicate, getChildren)` | 返回先序首个匹配节点或 undefined |
+| `listToTree(list, { getId, getParentId })` | Shallow-copies nodes, generates children arrays, and preserves input order |
+| `treeToList(roots, getChildren)` | Returns node references in preorder, retaining children |
+| `findTreeNode(roots, predicate, getChildren)` | Returns the first preorder match or undefined |
 
-listToTree 不修改输入，已有 children 被替换。null/undefined 父 ID 或缺失父节点成为根节点；节点 ID 不能为 null/undefined，重复 ID 和父子循环会抛错。
+listToTree does not mutate inputs and replaces existing children properties. A null/undefined parent ID or a missing parent makes a root. Node IDs cannot be null/undefined; duplicate IDs and parent cycles throw.
 
-遍历使用迭代实现，访问到循环或重复节点引用时抛错；查找匹配后立即返回。
+Traversal is iterative. Encountered cycles or repeated node references throw; searching returns immediately on a match.
 
 ```ts
 import { listToTree, treeToList, findTreeNode } from 'index-system';
@@ -255,24 +257,24 @@ treeToList(tree, node => node.children).map(node => node.id); // [1, 2]
 findTreeNode(tree, node => node.id === 2, node => node.children);
 ```
 
-### 格式校验
+### Format validation
 
-以下函数返回 boolean，仅检查格式，不验证地址存在或号码有效。
+These functions return boolean and check format only; they do not verify that addresses exist or numbers are valid.
 
-| 函数 | 参数 | 用途 |
+| Function | Parameter | Purpose |
 | --- | --- | --- |
-| `isEmail` | string | 邮箱 |
-| `isId` | string | 身份证号码 |
-| `isPhoneNumer` | string 或 number | 手机号 |
-| `isDomainName` | string | 域名 |
+| `isEmail` | string | Email address |
+| `isId` | string | Chinese identity card number |
+| `isPhoneNumer` | string or number | Phone number |
+| `isDomainName` | string | Domain name |
 | `isInternetUrl` | string | URL |
-| `isData` | string | 日期字符串 |
-| `isXml` | string | XML 文件名 |
-| `isChinese` | string | 指定范围内的汉字 |
-| `isIp` | string | IPv4 |
-| `isLowerCase` | string | 全部为小写英文字母 |
-| `isUpperCase` | string | 全部为大写英文字母 |
-| `isAlphabets` | string | 全部为英文字母 |
+| `isData` | string | Date string |
+| `isXml` | string | XML filename |
+| `isChinese` | string | Chinese characters within the supported range |
+| `isIp` | string | IPv4 address |
+| `isLowerCase` | string | Lowercase English letters only |
+| `isUpperCase` | string | Uppercase English letters only |
+| `isAlphabets` | string | English letters only |
 
 ```ts
 import { isEmail, isChinese } from 'index-system';
@@ -281,21 +283,21 @@ isEmail('alice@example.com'); // true
 isChinese('你好'); // true
 ```
 
-现有校验规则的限制见下文。
+See the limitations below for the current validation rules.
 
-### 浏览器文件转换
+### Browser file conversion
 
-| 函数 | 返回值 | 用途 |
+| Function | Return value | Purpose |
 | --- | --- | --- |
-| `fileToBase64(file, callback?)` | Promise<string> | File 转 Base64 Data URL |
-| `base64ToFile(base, filename = 'png')` | File | Data URL 转 File |
-| `blobToFile(blob, fileName = '', type?)` | File | Blob 转 File，默认保留原 MIME 类型，无类型时用 image/png |
-| `fileToBlob(file, callback?)` | Promise<Blob> | File 转 Blob |
-| `fileToUrl(file)` | string | 创建对象 URL |
-| `base64ToBlob(base64, mimeType?)` | Blob | Data URL 转 Blob |
-| `blobToDataURL(blob, callback?)` | Promise<string> | Blob 转 Data URL |
+| `fileToBase64(file, callback?)` | Promise<string> | File to Base64 Data URL |
+| `base64ToFile(base, filename = 'png')` | File | Data URL to File |
+| `blobToFile(blob, fileName = '', type?)` | File | Blob to File; defaults to the original MIME type, or image/png if absent |
+| `fileToBlob(file, callback?)` | Promise<Blob> | File to Blob |
+| `fileToUrl(file)` | string | Creates an object URL |
+| `base64ToBlob(base64, mimeType?)` | Blob | Data URL to Blob |
+| `blobToDataURL(blob, callback?)` | Promise<string> | Blob to Data URL |
 
-Base64 输入必须为完整的 Base64 Data URL。读取函数始终返回 Promise；读取失败、取消或回调抛错时拒绝。
+Base64 inputs must be complete Base64 Data URLs. Read functions always return Promises and reject on read failure, abort, or callback errors.
 
 ```ts
 import { fileToBase64, base64ToFile, fileToUrl } from 'index-system';
@@ -304,43 +306,43 @@ async function example(file: File) {
   const dataURL = await fileToBase64(file);
   const converted = base64ToFile(dataURL, file.name);
   const url = fileToUrl(converted);
-  // 使用完毕后释放对象 URL。
+  // Release the object URL after use.
   URL.revokeObjectURL(url);
 }
 ```
 
-### Excel 读取
+### Excel reading
 
-readExcelToJSON<T>(file, sheetName?) 基于 xlsx 读取工作表，默认选择第一张表，默认行类型为 Record<string, any>。缺失工作表时抛错或拒绝。
+readExcelToJSON<T>(file, sheetName?) uses xlsx to read a worksheet. It defaults to the first worksheet and the row type Record<string, any>. A missing worksheet throws or rejects.
 
 ```ts
 import { readExcelToJSON } from 'index-system';
 
 type Row = { name: string; score: number };
-// Node.js：文件路径输入同步返回 Row[]。
+// Node.js: a file path synchronously returns Row[].
 const rows = readExcelToJSON<Row>('./scores.xlsx', 'Sheet1');
 
-// 浏览器：File 输入返回 Promise<Row[]>。
+// Browser: a File returns Promise<Row[]>.
 async function readUpload(file: File) {
   return await readExcelToJSON<Row>(file, 'Sheet1');
 }
 ```
 
-泛型仅描述返回类型，不执行行数据的运行时校验。
+The generic describes the return type only; it does not validate row data at runtime.
 
-## 兼容性与已知限制
+## Compatibility and known limitations
 
-- 文件转换依赖 File、Blob、FileReader、atob 或 URL.createObjectURL；Excel 的 File 输入需要 arrayBuffer()。请确认环境提供对应 API。
-- 旧名称仍导出：base64Tofile → base64ToFile、bolbToFile → blobToFile、fileToBolb → fileToBlob、isRqual → isEqual、arrayIsRqual → arrayIsEqual、arrayIsRqualShallow → shallowEqual。objectIsRqualShallow 保留深比较行为。
-- 相比旧实现，Excel 路径读取返回数组，File 读取返回 Promise；文件转换回调形式也返回 Promise。blobToFile 默认保留输入 MIME 类型。升级时请检查相关调用。
-- isId 的 15 位校验结果会被后续赋值覆盖，且未检查身份证校验码；手机号规则仅覆盖部分号段。
-- isData 只检查日期格式前缀，不验证实际日期或完整字符串；isDomainName、isIp、isXml 正则存在转义问题。
-- MD5、校验类 Is 和 src/excel/excel.ts 的 xlsx 再导出未通过包入口导出。
-- 浏览器 FileReader 行为通过模拟测试验证，尚未完成真实浏览器验证。
+- File conversion depends on File, Blob, FileReader, atob, or URL.createObjectURL. Excel File input requires arrayBuffer(). Check that your environment provides the necessary APIs.
+- Legacy exports remain available: base64Tofile → base64ToFile, bolbToFile → blobToFile, fileToBolb → fileToBlob, isRqual → isEqual, arrayIsRqual → arrayIsEqual, and arrayIsRqualShallow → shallowEqual. objectIsRqualShallow retains deep-comparison behavior.
+- Compared with the old implementation, Excel path input returns an array, File input returns a Promise, and file-conversion callback forms also return Promises. blobToFile preserves the input MIME type by default. Review affected calls when upgrading.
+- isId overwrites the 15-digit validation result and does not check the identity card checksum. Phone validation covers only some number prefixes.
+- isData checks only a date-format prefix, not date validity or the entire string. isDomainName, isIp, and isXml contain regex escaping issues.
+- MD5, the Is validation class, and the xlsx re-export in src/excel/excel.ts are not exported from the package entry.
+- Browser FileReader behavior has been tested with a mock, not verified in a real browser.
 
-## 本地开发
+## Local development
 
-测试需要 Node.js 20 或更高版本。
+Tests require Node.js 20 or later.
 
 ```bash
 git clone https://github.com/15998194741/utils.git
@@ -350,32 +352,32 @@ npm run build
 npm test
 ```
 
-build 先检查类型，再清理项目内 dist 目录并生成 JavaScript 和类型声明。tsconfig.build.json 仅包含根入口与 src 下的 TypeScript 文件。测试涵盖数组、复制、比较、函数控制、异步、文件、Excel、对象、字符串、数值、URL 和树结构。
+build checks types, clears the project-local dist directory, and generates JavaScript and type declarations. tsconfig.build.json includes only the root entry and TypeScript files under src. Tests cover arrays, copying, equality, function control, async helpers, files, Excel, objects, strings, numbers, URLs, and trees.
 
-可通过 npx webpack 生成 UMD 文件，输出到 webpack 目录；npm 包入口使用 dist，两者不同。
+Run npx webpack to generate UMD files under webpack. The npm package entry uses dist; these are separate outputs.
 
 ```text
 src/
-├── array/       # 数组
-├── object/      # 对象
-├── string/      # 字符串
-├── number/      # 数值
-├── sort/        # 排序
-├── function/    # 函数控制
-├── async/       # 异步控制
-├── url/         # 查询参数
-├── tree/        # 树结构
-├── utils/       # 复制、类型与比较
-├── regular/     # 格式校验
-├── file/        # 文件转换
-├── excel/       # Excel 读取
-├── encry/       # MD5，未从包入口导出
-└── index.ts     # 汇总导出
+├── array/       # Arrays
+├── object/      # Objects
+├── string/      # Strings
+├── number/      # Numbers
+├── sort/        # Sorting
+├── function/    # Function control
+├── async/       # Async control
+├── url/         # Query parameters
+├── tree/        # Trees
+├── utils/       # Copying, types, and equality
+├── regular/     # Format validation
+├── file/        # File conversion
+├── excel/       # Excel reading
+├── encry/       # MD5, not exported from the package entry
+└── index.ts     # Module exports
 ```
 
-## 发布
+## Publishing
 
-在干净工作区中更新到未使用过的版本，再构建和检查发布内容：
+With a clean working directory, select an unused version, then build and inspect the package:
 
 ```bash
 npm version patch
@@ -385,14 +387,14 @@ npm login --registry=https://registry.npmjs.org/
 npm publish --access public --registry=https://registry.npmjs.org/
 ```
 
-需要拥有包发布权限，并按 npm 提示完成认证。发布失败后先确认本地和远端版本状态，再决定是否重试，不要重复增加版本号。
+You must have publishing permission and complete authentication as prompted by npm. After a failure, inspect local and registry versions before retrying; do not repeatedly bump the version.
 
-仓库提供 scripts/release.cjs，但当前 package.json 未配置 release 命令。如需运行该脚本，请先配置对应 npm scripts；现有可直接执行的命令为 build、test 和 versionAdd。Windows PowerShell 可使用 npm.cmd 避免 npm.ps1 对参数的处理。
+The repository includes scripts/release.cjs, but package.json currently does not define a release command. Configure the corresponding npm scripts before using it. The available commands are build, test, and versionAdd. In Windows PowerShell, use npm.cmd to avoid argument handling by npm.ps1.
 
-## 参与贡献
+## Contributing
 
-欢迎提交 [Issue](https://github.com/15998194741/utils/issues) 或 Pull Request。问题反馈请包含库版本、运行环境、最小复现代码、预期结果和实际结果。代码贡献请说明变更目的和验证方式，并补充相关行为测试。
+[Issues](https://github.com/15998194741/utils/issues) and pull requests are welcome. Include the library version, runtime environment, a minimal reproduction, and expected and actual results when reporting a problem. Explain the purpose and validation of code changes, and add relevant behavior tests.
 
-## 许可证
+## License
 
-[LICENSE](./LICENSE) 包含 Apache License 2.0 文本，但 package.json 的 license 字段为 ISC。两处声明尚未统一，维护者需要确认适用许可证。
+[LICENSE](./LICENSE) contains Apache License 2.0, while the license field in package.json is ISC. These declarations are inconsistent; maintainers need to confirm the applicable license.
