@@ -37,6 +37,29 @@ console.log(whatType([])); // 'array'
 
 ## API
 
+### 排序算法
+
+```ts
+import { quickSort, mergeSort } from 'index-system';
+
+const numbers = [3, 1, 2];
+quickSort(numbers); // [1, 2, 3]，原数组不变
+quickSort(numbers, (a, b) => b - a); // [3, 2, 1]
+mergeSort([{ score: 90 }, { score: 80 }], (a, b) => a.score - b.score);
+```
+
+所有排序函数接收只读数组，返回新的浅拷贝数组。数字默认升序；字符串、对象等类型需要提供比较函数。比较函数返回负数表示前者排在前面，零表示相等，正数表示后者排在前面。数字默认比较适用于不含 NaN 的数值。
+
+| 导出 | 算法 | 时间复杂度（平均 / 最坏） | 稳定排序 |
+| --- | --- | --- | --- |
+| `bubbleSort` | 冒泡排序 | O(n²) / O(n²) | 是 |
+| `selectionSort` | 选择排序 | O(n²) / O(n²) | 否 |
+| `insertionSort` | 插入排序 | O(n²) / O(n²) | 是 |
+| `shellSort` | 希尔排序（折半步长） | 取决于输入 / O(n²) | 否 |
+| `mergeSort` | 归并排序 | O(n log n) / O(n log n) | 是 |
+| `quickSort` | 三路快速排序 | O(n log n) / O(n²) | 否 |
+| `heapSort` | 堆排序 | O(n log n) / O(n log n) | 否 |
+
 以下工具均为包入口的命名导出。默认导出为字符串 `欢迎使用`，不是工具对象。
 
 ### 对象复制
@@ -167,7 +190,27 @@ npm install
 npx tsc -p tsconfig.json
 ```
 
-TypeScript 编译输出位于 dist 目录。当前 `npm run build` 仅执行 `echo 1`，不会生成发布文件；仓库尚未配置测试脚本。
+运行 `npm run build` 会先检查类型，再清理项目内的 dist 目录并生成 JavaScript 和类型声明。发布构建使用 tsconfig.build.json，仅包含包入口和 src 下的 TypeScript 文件；仓库尚未配置测试脚本。
+
+## 自动发布
+
+先安装依赖，并通过 `npm login --registry=https://registry.npmjs.org/` 登录拥有包发布权限的账户。
+
+```bash
+# 只检查类型、Git 配置及变更格式，不修改版本或发布
+npm.cmd run release:check
+
+# 提交改动，更新补丁版本并发布
+npm.cmd run release
+
+# 更新次版本或主版本
+npm.cmd run release -- minor
+npm.cmd run release -- major
+```
+
+以上命令适用于 Windows PowerShell，使用 npm.cmd 避免参数被 npm.ps1 包装脚本处理；其他平台使用 npm 即可。脚本会自动提交仓库中所有未被 Git 忽略的改动（包括新文件），然后创建版本提交和 v 开头的标签、构建、检查实际 npm 压缩包、发布到 npmjs 的 latest 标签，最后将当前分支和版本标签推送到 origin。运行前请检查 `git status`，确保所有改动均需要提交。发布时按 npm 提示完成认证。
+
+任一步骤失败都会停止。npm 发布和 Git 推送不是一个事务：如果 npm 发布成功但 Git 推送失败，按脚本输出重试 Git 推送即可；如果已更新本地版本但发布失败，先检查本地标签和 npm 上的版本状态，不要直接重复执行 release，以免再次增加版本号。打包文件保存在脚本生成的系统临时目录中。
 
 仓库还提供 webpack 配置，可通过 `npx webpack` 生成 UMD 打包文件，输出目录为 webpack，与 npm 包入口使用的 dist 目录不同。
 
