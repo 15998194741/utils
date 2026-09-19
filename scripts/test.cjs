@@ -151,3 +151,95 @@ test('trees preserve order, leave inputs intact and reject malformed graphs', ()
   const many=Array.from({length:20000},(_,id)=>({id,parent:id ? id-1 : null}));
   assert.equal(u.treeToList(u.listToTree(many,options),n=>n.children).length,20000);
 });
+test('date helpers validate, format and use calendar-day semantics', () => {
+  const date = new Date(2024, 1, 29, 5, 6, 7, 8);
+  assert.equal(u.formatDate(date, 'YYYY/MM/DD HH:mm:ss.SSS'), '2024/02/29 05:06:07.008');
+  const next = u.addDays(date, 1); assert.equal(next.getDate(), 1); assert.notEqual(next,date);
+  assert.equal(u.differenceInDays(new Date(2024,2,1,23),new Date(2024,1,28,1)),2);
+  assert.equal(u.isValidDate(new Date('bad')),false); assert.throws(()=>u.formatDate(new Date('bad')),RangeError);
+});
+test('random helpers support deterministic injection and valid UUIDs', () => {
+  assert.equal(u.randomInt(2,4,()=>0),2); assert.equal(u.randomInt(2,4,()=>0.999),4);
+  assert.deepEqual(u.shuffle([1,2,3],()=>0),[2,3,1]); assert.equal(u.sample([],()=>0),undefined);
+  assert.throws(()=>u.randomInt(0,1,()=>1),RangeError);
+  assert.match(u.uuid(),/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+});
+test('storage supports prefixes, expiration, malformed values and falsy data', () => {
+  const map = new Map(); const storage={getItem:k=>map.has(k)?map.get(k):null,setItem:(k,v)=>map.set(k,v),removeItem:k=>map.delete(k)};
+  const cache=u.createStorage(storage,'app:'); cache.set('zero',0); assert.equal(cache.get('zero'),0);
+  cache.set('gone','x',0); assert.equal(cache.get('gone','fallback'),'fallback'); assert.equal(map.has('app:gone'),false);
+  map.set('app:bad','{'); assert.equal(cache.get('bad',9),9); assert.equal(map.has('app:bad'),false);
+  cache.remove('zero'); assert.equal(cache.get('zero'),undefined); assert.throws(()=>cache.set('x',1,-1),RangeError);
+});
+test('event emitter handles mutation, once, unsubscribe and errors synchronously', () => {
+  const emitter=new u.EventEmitter(); const calls=[];
+  const remove=emitter.on('change',value=>{calls.push(value);remove()});
+  emitter.once('change',value=>calls.push(value*10));
+  assert.equal(emitter.emit('change',2),true); assert.equal(emitter.emit('change',3),false);
+  assert.deepEqual(calls,[2,20]); assert.equal(emitter.listenerCount('change'),0);
+  emitter.on('error',()=>{throw Error('listener')}); assert.throws(()=>emitter.emit('error'),/listener/); emitter.clear();
+});
+test('queue, stack, priority queue and LRU cache', () => {
+  const queue=new u.Queue(); queue.enqueue(1);queue.enqueue(2);assert.equal(queue.dequeue(),1);assert.equal(queue.peek(),2);queue.clear();assert.equal(queue.size,0);
+  const stack=new u.Stack();stack.push(1);stack.push(2);assert.equal(stack.pop(),2);assert.equal(stack.peek(),1);
+  const priority=new u.PriorityQueue((a,b)=>a-b);[3,1,2].forEach(x=>priority.enqueue(x));assert.deepEqual([priority.dequeue(),priority.dequeue(),priority.dequeue()],[1,2,3]);
+  const lru=new u.LRUCache(2);lru.set('a',1).set('b',2);assert.equal(lru.get('a'),1);lru.set('c',3);assert.equal(lru.has('b'),false);assert.deepEqual([...lru.keys()],['a','c']);
+  assert.throws(()=>new u.LRUCache(0),RangeError);
+});
+test('safe JSON and stable serialization', () => {
+  assert.deepEqual(u.safeJsonParse('{"x":1}'),{ok:true,value:{x:1}}); assert.equal(u.safeJsonParse('{').ok,false);
+  assert.equal(u.stableStringify({z:1,a:{d:2,c:3}}),'{"a":{"c":3,"d":2},"z":1}');
+  assert.equal(u.stableStringify({b:1,a:2}),u.stableStringify({a:2,b:1}));
+  const malicious=JSON.parse('{"__proto__":1}');assert.equal(u.stableStringify(malicious),'{"__proto__":1}');
+  const cycle={};cycle.self=cycle;assert.throws(()=>u.stableStringify(cycle),/cyclic/);
+});
+test('math statistics define interpolation and reject invalid input', () => {
+  assert.equal(u.median([3,1,2]),2);assert.equal(u.median([1,2,3,4]),2.5);
+  assert.equal(u.variance([1,2,3]),2/3);assert.equal(u.percentile([0,10,20],.25),5);
+  assert.throws(()=>u.median([]),RangeError);assert.throws(()=>u.variance([Infinity]),RangeError);assert.throws(()=>u.percentile([1],2),RangeError);
+});
+test('regular validators fix dates, domains, IPs, URLs, XML and IDs',()=>{
+  assert.ok(u.isData('2024-02-29'));assert.equal(u.isData('2023-02-29'),false);assert.equal(u.isData('2024-1-1x'),false);
+  assert.ok(u.isDomainName('example.com'));assert.equal(u.isDomainName('-bad.com'),false);
+  assert.ok(u.isIp('192.168.0.1'));assert.equal(u.isIp('01.2.3.4'),false);assert.equal(u.isIp('256.0.0.1'),false);
+  assert.ok(u.isInternetUrl('https://example.com/a?q=1'));assert.equal(u.isInternetUrl('javascript:alert(1)'),false);
+  assert.ok(u.isXml('hello-world.XML'));assert.equal(u.isXml('folder/a.xml'),false);
+  assert.ok(u.isId('11010519491231002X'));assert.equal(u.isId('110105194912310021'),false);
+  assert.ok(u.isPhoneNumer('19912345678'));assert.ok(u.isChinese('𠀀中文'));
+});
+test('collection helpers preserve stable order',()=>{
+  assert.deepEqual([...u.keyBy([{id:1,v:'a'},{id:1,v:'b'}],x=>x.id).values()],[{id:1,v:'b'}]);
+  assert.deepEqual([...u.countBy(['a','bb','c'],x=>x.length)],[ [1,2],[2,1] ]);
+  assert.deepEqual(u.partition([1,2,3],x=>x%2===1),[[1,3],[2]]);
+  assert.deepEqual(u.orderBy([{a:1,b:2},{a:1,b:3},{a:0,b:9}],[{iteratee:x=>x.a},{iteratee:x=>x.b,direction:'desc'}]).map(x=>x.b),[9,3,2]);
+});
+test('memoize caches values and removes rejected async results',async()=>{
+  let calls=0;const fn=u.memoize((a,b)=>{calls++;return a+b});assert.equal(fn(1,2),3);assert.equal(fn(1,2),3);assert.equal(calls,1);fn.clear();fn(1,2);assert.equal(calls,2);
+  let attempts=0;const asyncFn=u.memoizeAsync(async x=>{attempts++;if(attempts===1)throw Error('x');return x});await assert.rejects(asyncFn(1));assert.equal(await asyncFn(1),1);assert.equal(attempts,2);
+});
+test('result and assertion helpers',async()=>{
+  assert.deepEqual(u.tryCatch(()=>1),{ok:true,value:1});assert.equal(u.tryCatch(()=>{throw Error('x')}).ok,false);
+  assert.equal((await u.tryCatchAsync(async()=>2)).value,2);assert.throws(()=>u.invariant(false,'bad'),/bad/);assert.throws(()=>u.assertDefined(null));assert.throws(()=>u.assertNever('x'),/x/);
+});
+test('encoding round trips binary, UTF-8, base64 and base64url',()=>{
+  const bytes=u.utf8ToBytes('你好😀');assert.equal(u.bytesToUtf8(bytes),'你好😀');assert.deepEqual([...u.hexToBytes(u.bytesToHex(bytes))],[...bytes]);
+  assert.deepEqual([...u.base64ToBytes(u.bytesToBase64(bytes))],[...bytes]);assert.deepEqual([...u.base64UrlToBytes(u.bytesToBase64Url(bytes))],[...bytes]);
+  assert.throws(()=>u.hexToBytes('abc'),TypeError);assert.throws(()=>u.base64ToBytes('@@'),TypeError);
+});
+test('semantic versions compare prereleases and ranges',()=>{
+  assert.equal(u.compareVersion('1.0.0-alpha.1','1.0.0-alpha.2'),-1);assert.equal(u.compareVersion('1.0.0','1.0.0-beta'),1);assert.equal(u.parseVersion('01.0.0'),null);
+  assert.ok(u.satisfiesVersion('1.5.0','^1.2.0'));assert.equal(u.satisfiesVersion('2.0.0','^1.2.0'),false);assert.ok(u.satisfiesVersion('1.2.5','>=1.2.0 <2.0.0'));assert.ok(u.satisfiesVersion('1.2.9','~1.2.0'));
+});
+test('Chinese business helpers validate and mask',()=>{
+  assert.ok(u.isChineseIdCard('11010519491231002X'));assert.ok(u.isChineseMobile('19912345678'));assert.ok(u.isBankCard('4111111111111111'));assert.equal(u.isBankCard('4111111111111112'),false);
+  assert.equal(u.maskChineseMobile('19912345678'),'199****5678');assert.equal(u.maskChineseIdCard('11010519491231002X'),'110105********002X');
+});
+test('mask helpers preserve useful edges',()=>{assert.equal(u.maskPhone('13812345678'),'138****5678');assert.equal(u.maskEmail('alice@example.com'),'a****@example.com');assert.equal(u.maskName('张三丰'),'张**');assert.equal(u.maskBankCard('4111111111111111'),'4111********1111')});
+test('polling succeeds, times out and validates options',async()=>{let calls=0;assert.equal(await u.poll(()=>++calls,{interval:1,timeout:100,isDone:x=>x===3}),3);await assert.rejects(u.waitUntil(()=>false,{interval:1,timeout:2}),/timed out/);await assert.rejects(u.poll(()=>true,{interval:-1}),RangeError)});
+test('schemas parse nested data, optional values, unions and refinements',()=>{const schema=u.objectSchema({name:u.stringSchema().refine(x=>x.length>0,'empty'),age:u.numberSchema(),nick:u.stringSchema().optional(),kind:u.unionSchema([u.literalSchema('a'),u.literalSchema('b')])});assert.deepEqual(schema.parse({name:'A',age:2,kind:'a'}),{name:'A',age:2,nick:undefined,kind:'a'});const bad=schema.safeParse({name:'',age:'x',kind:'c'});assert.equal(bad.success,false);assert.match(bad.error.message,/name/);assert.deepEqual(u.arraySchema(u.numberSchema()).parse([1,2]),[1,2])});
+test('signals, computed values and watches notify snapshots',()=>{const count=u.createSignal(1);const doubled=u.computed(()=>count.get()*2,[count]);const seen=[];const stop=u.watch(doubled,(v,p)=>seen.push([v,p]),true);count.set(2);count.set(2);assert.deepEqual(seen,[[2,2],[4,2]]);stop();doubled.dispose();count.set(3);assert.equal(doubled.get(),4)});
+test('state machines apply guards, actions and subscriptions',()=>{const machine=u.createStateMachine({initial:'idle',context:{count:0},states:{idle:{start:{target:'running',action:c=>c.count++}},running:{stop:'idle',start:{target:'running',guard:()=>false}}}});const seen=[];machine.subscribe((s,p)=>seen.push([s,p]));assert.ok(machine.send('start'));assert.equal(machine.context.count,1);assert.equal(machine.send('start'),false);assert.ok(machine.send('stop'));assert.deepEqual(seen,[['running','idle'],['idle','running']])});
+test('diff creates immutable patches and array set differences',()=>{const left={a:1,n:{x:1},remove:true},right={a:2,n:{x:1,y:2}};const patch=u.objectDiff(left,right);assert.deepEqual(u.applyPatch(left,patch),right);assert.deepEqual(left,{a:1,n:{x:1},remove:true});assert.deepEqual(u.arrayDiff([{x:1},{x:2}],[{x:2},{x:3}]),{added:[{x:3}],removed:[{x:1}]});assert.throws(()=>u.applyPatch({},[{op:'add',path:['missing','x'],value:1}]),/Invalid/)});
+test('scheduler respects concurrency, priority for queued work, and idle',async()=>{const scheduler=u.createScheduler(1),order=[];let release;const gate=new Promise(resolve=>release=resolve);const first=scheduler.add(async()=>{order.push('first');await gate});const low=scheduler.add(()=>order.push('low'),0);const high=scheduler.add(()=>order.push('high'),10);assert.equal(scheduler.active,1);assert.equal(scheduler.pending,2);release();await Promise.all([first,low,high]);await scheduler.onIdle();assert.deepEqual(order,['first','high','low']);assert.throws(()=>u.createScheduler(0),RangeError)});
+test('unit conversions use documented base factors',()=>{assert.equal(u.convertLength(1,'km','m'),1000);assert.ok(Math.abs(u.convertLength(12,'in','ft')-1)<1e-12);assert.equal(u.convertWeight(1,'kg','g'),1000);assert.equal(u.celsiusToFahrenheit(100),212);assert.equal(u.fahrenheitToCelsius(32),0)});
+test('CommonJS and ESM package entries expose matching functions',async()=>{const esm=await import(require('node:url').pathToFileURL(require('node:path').resolve('dist/index.mjs')).href+'?test');assert.equal(typeof esm.unique,'function');assert.deepEqual(esm.unique([1,1,2]),u.unique([1,1,2]));assert.equal(esm.default,'欢迎使用')});

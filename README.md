@@ -46,7 +46,7 @@ const { unique } = require('index-system');
 unique([1, 1, 2]); // [1, 2]
 ```
 
-The current build outputs CommonJS. The JavaScript entry is `dist/index.js`, and the type entry is `dist/index.d.ts`. The default export is the string `欢迎使用`; utilities are named exports. A separate ESM build and tree-shaking support are not guaranteed.
+The package supports CommonJS through `dist/index.js` and ESM through `dist/index.mjs`; TypeScript declarations use `dist/index.d.ts`. The `exports` map selects the appropriate entry. The ESM file is a wrapper around the CommonJS implementation, so it provides native ESM imports but is not independently tree-shakable. The default export is the string `欢迎使用`; utilities are named exports.
 
 ## API
 
@@ -330,13 +330,143 @@ async function readUpload(file: File) {
 
 The generic describes the return type only; it does not validate row data at runtime.
 
+### Dates
+
+`isValidDate(value)` checks for a valid Date. `formatDate(date, pattern?)` formats local time with `YYYY`, `MM`, `DD`, `HH`, `mm`, `ss`, and `SSS`. `addDays(date, amount)` returns a new Date using local calendar arithmetic. `differenceInDays(left, right)` compares local calendar dates and ignores time-of-day and daylight-saving transitions.
+
+```ts
+import { formatDate, addDays, differenceInDays } from 'index-system';
+
+formatDate(new Date(2024, 1, 29), 'YYYY-MM-DD'); // '2024-02-29'
+addDays(new Date(2024, 1, 29), 1);
+differenceInDays(new Date(2024, 2, 1), new Date(2024, 1, 28)); // 2
+```
+
+### Random values
+
+`randomInt(min, max, random?)` returns an inclusive safe integer. `shuffle(values, random?)` returns a shuffled copy, and `sample(values, random?)` returns one value or undefined for an empty array. These three functions use Math.random by default and are not suitable for secrets; an injected generator must return a finite value in `[0, 1)`.
+
+`uuid()` generates an RFC 4122 version 4 UUID using `crypto.randomUUID` or `crypto.getRandomValues`, and throws when secure browser-compatible crypto is unavailable.
+
+### Storage
+
+`createStorage(storage, prefix?)` wraps a localStorage-compatible object with `set(key, value, ttl?)`, `get(key, fallback?)`, and `remove(key)`. Values use JSON serialization. TTL is measured in milliseconds; zero expires immediately. Expired or malformed entries are removed. Serialization and underlying storage errors propagate to the caller.
+
+```ts
+import { createStorage } from 'index-system';
+
+const cache = createStorage(localStorage, 'app:');
+cache.set('profile', { name: 'Alice' }, 60_000);
+cache.get('profile');
+cache.remove('profile');
+```
+
+### Events
+
+`EventEmitter<Events>` provides `on`, `once`, `off`, `emit`, `clear`, and `listenerCount`. on and once return unsubscribe functions. emit runs a snapshot of listeners synchronously in registration order and returns false when no listener exists. Listener exceptions propagate and stop the current emission.
+
+```ts
+import { EventEmitter } from 'index-system';
+
+type Events = { change: [value: number]; close: [] };
+const events = new EventEmitter<Events>();
+const unsubscribe = events.on('change', value => console.log(value));
+events.emit('change', 1);
+unsubscribe();
+```
+
+### Data structures
+
+- `Queue<T>`: enqueue, dequeue, peek, size, and clear.
+- `Stack<T>`: push, pop, peek, size, and clear.
+- `PriorityQueue<T>`: binary heap with enqueue, dequeue, peek, size, and clear. A negative comparator result gives higher priority.
+- `LRUCache<K, V>`: positive-integer capacity, get, has, set, delete, clear, size, and keys. Successful get refreshes recency; keys iterate from least to most recent.
+
+### JSON
+
+`safeJsonParse<T>(text)` returns `{ ok: true, value }` or `{ ok: false, error }` instead of throwing for invalid JSON. Its generic is a type assertion and does not validate runtime data.
+
+`stableStringify(value, space?)` sorts object keys recursively while preserving array order. It follows JSON.stringify behavior for unsupported primitive values and toJSON is not invoked before normalization. It is intended for plain JSON-compatible data and throws on cycles or BigInt.
+
+### Math and statistics
+
+`median(values)`, `variance(values)`, and `percentile(values, p)` require a non-empty array of finite numbers and do not mutate it. variance is population variance. percentile uses linear interpolation with p in `[0, 1]`. Calculations use ordinary JavaScript floating-point arithmetic.
+
+```ts
+import { median, variance, percentile } from 'index-system';
+
+median([3, 1, 2]); // 2
+variance([1, 2, 3]); // 0.666666...
+percentile([0, 10, 20], 0.25); // 5
+```
+
+### Collections, memoization, and results
+
+- `keyBy(values, key)` returns a Map and keeps the last value for duplicate keys.
+- `countBy(values, key)` returns occurrence counts in a Map.
+- `partition(values, predicate)` returns `[matches, nonMatches]` without mutating input.
+- `orderBy(values, orders)` performs a stable multi-key sort; each order has an iteratee and optional `asc` or `desc` direction.
+- `memoize(fn)` caches by argument identity and exposes `clear()`. `memoizeAsync(fn)` also removes rejected Promise entries so later calls can retry. The receiver (`this`) is not part of the cache key.
+- `tryCatch(task)` and `tryCatchAsync(task)` return a discriminated `{ ok, value/error }` Result.
+
+### Assertions
+
+`invariant(condition, message?)` narrows a truthy condition, `assertDefined(value, message?)` narrows away null and undefined, and `assertNever(value, message?)` supports exhaustive TypeScript branches. Failures throw Error.
+
+### Encoding
+
+`bytesToHex` / `hexToBytes`, `utf8ToBytes` / `bytesToUtf8`, `bytesToBase64` / `base64ToBytes`, and `bytesToBase64Url` / `base64UrlToBytes` convert binary data. Invalid input throws. UTF-8 decoding is fatal, and Base64 helpers require global btoa/atob support.
+
+### Semantic versions
+
+`parseVersion`, `compareVersion`, and `satisfiesVersion` implement strict semantic-version parsing and precedence, including prereleases. Range matching supports exact versions, `>`, `>=`, `<`, `<=`, whitespace AND, `||` OR, caret, and tilde ranges. Wildcards, hyphen ranges, and npm's complete range grammar are not supported.
+
+### Chinese business helpers
+
+`isChineseIdCard` validates 15-digit legacy IDs or 18-digit IDs with date and checksum; `isChineseMobile` checks the current broad mainland mobile shape; `isBankCard` applies Luhn to 12–19 digits. `maskChineseMobile` and `maskChineseIdCard` mask valid inputs and return invalid inputs unchanged. These format checks do not verify issuance, ownership, or current carrier allocation.
+
+### Masking and polling
+
+`maskPhone`, `maskEmail`, `maskName`, and `maskBankCard` preserve useful edges and replace the middle with `*`. They format display strings only and do not validate input.
+
+`poll(task, options)` repeats until `isDone` returns true; `waitUntil(predicate, options)` waits for a truthy result. Options include interval, timeout, and AbortSignal. Defaults are 1000 ms and 30000 ms. The task runs immediately and at least once, even with timeout 0. Aborting is observed between attempts and does not cancel an in-flight task.
+
+### Schemas
+
+`stringSchema`, `numberSchema`, `booleanSchema`, `literalSchema`, `arraySchema`, `objectSchema`, and `unionSchema` provide lightweight runtime parsing. Every Schema supports `parse`, `safeParse`, `optional`, and `refine`; failures use `SchemaError` with a property path. objectSchema returns only declared string-keyed properties and does not coerce values.
+
+```ts
+const user = objectSchema({
+  name: stringSchema().refine(value => value.length > 0, 'Required'),
+  age: numberSchema(),
+  nickname: stringSchema().optional(),
+});
+const result = user.safeParse({ name: 'Alice', age: 20 });
+```
+
+### Observables and state machines
+
+`createSignal(initial)` provides get, set, update, and subscribe. Notifications are synchronous snapshots and Object.is-equal assignments are ignored. `computed(compute, dependencies)` recomputes from explicit dependencies and provides `dispose()`; `watch(signal, listener, immediate?)` returns an unsubscribe function.
+
+`createStateMachine(config)` provides state, mutable context, send, and subscribe. Transitions may be a target state or include target, guard, and action. Guards run before actions; subscribers run synchronously only when the state changes. Unknown and blocked events return false.
+
+### Data differences
+
+`objectDiff(left, right)` creates add, remove, and replace operations for plain-object properties; arrays and special objects are replaced as values. `applyPatch(value, operations)` applies operations to a deep clone and can return undefined when removing the root. `arrayDiff(left, right)` returns added and removed values using deep equality and set-style membership rather than occurrence counts.
+
+### Scheduler and units
+
+`createScheduler(concurrency?)` queues Promise or synchronous tasks. Higher numeric priority runs first among queued tasks; already-running tasks are not preempted. It exposes add, onIdle, pending, and active.
+
+`convertLength` supports mm, cm, m, km, in, ft, yd, and mi. `convertWeight` supports mg, g, kg, oz, and lb. `celsiusToFahrenheit` and `fahrenheitToCelsius` convert temperatures. Results use floating-point arithmetic and may require tolerance-based comparison.
+
 ## Compatibility and known limitations
 
 - File conversion depends on File, Blob, FileReader, atob, or URL.createObjectURL. Excel File input requires arrayBuffer(). Check that your environment provides the necessary APIs.
 - Legacy exports remain available: base64Tofile → base64ToFile, bolbToFile → blobToFile, fileToBolb → fileToBlob, isRqual → isEqual, arrayIsRqual → arrayIsEqual, and arrayIsRqualShallow → shallowEqual. objectIsRqualShallow retains deep-comparison behavior.
 - Compared with the old implementation, Excel path input returns an array, File input returns a Promise, and file-conversion callback forms also return Promises. blobToFile preserves the input MIME type by default. Review affected calls when upgrading.
-- isId overwrites the 15-digit validation result and does not check the identity card checksum. Phone validation covers only some number prefixes.
-- isData checks only a date-format prefix, not date validity or the entire string. isDomainName, isIp, and isXml contain regex escaping issues.
+- `isData` remains as a legacy spelling, with `isDate` as an alias. Both validate an entire YYYY-M-D or YYYY-MM-DD calendar date. `isPhoneNumer` also retains its legacy spelling.
+- Format validators check syntax only. URL validation accepts HTTP and HTTPS, domain validation requires a letter-only final label, and phone/identity checks cannot verify existence or ownership.
 - MD5, the Is validation class, and the xlsx re-export in src/excel/excel.ts are not exported from the package entry.
 - Browser FileReader behavior has been tested with a mock, not verified in a real browser.
 
@@ -372,6 +502,28 @@ src/
 ├── file/        # File conversion
 ├── excel/       # Excel reading
 ├── encry/       # MD5, not exported from the package entry
+├── date/        # Local calendar helpers
+├── random/      # Random values and UUIDs
+├── storage/     # JSON storage with TTL
+├── event/       # Typed event emitter
+├── data-structure/ # Queue, stack, priority queue, and LRU cache
+├── json/        # Safe parsing and stable serialization
+├── math/        # Statistics
+├── collection/  # Grouping, partitioning, and ordering
+├── memoize/     # Sync and async memoization
+├── result/      # Exception-to-result helpers
+├── assert/      # Runtime assertions and type narrowing
+├── encoding/    # Hex, UTF-8, Base64, and Base64URL
+├── semver/      # Semantic version parsing and ranges
+├── chinese/     # Chinese ID, phone, bank card, and masking helpers
+├── mask/        # Display masking
+├── polling/     # Polling and condition waiting
+├── schema/      # Runtime parsing and validation
+├── observable/  # Signals, computed values, and watches
+├── state-machine/ # Finite state machines
+├── diff/        # Object patches and array differences
+├── scheduler/   # Priority-aware concurrency scheduler
+├── unit/        # Length, weight, and temperature conversion
 └── index.ts     # Module exports
 ```
 

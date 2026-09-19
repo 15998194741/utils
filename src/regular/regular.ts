@@ -1,110 +1,54 @@
+function validCalendarDate(year: number, month: number, day: number): boolean {
+  const date = new Date(Date.UTC(year, month - 1, day))
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+}
+function validIdDate(id: string): boolean {
+  const year = Number(id.length === 18 ? id.slice(6, 10) : `19${id.slice(6, 8)}`)
+  const month = Number(id.length === 18 ? id.slice(10, 12) : id.slice(8, 10))
+  const day = Number(id.length === 18 ? id.slice(12, 14) : id.slice(10, 12))
+  return validCalendarDate(year, month, day)
+}
 export function isId(id: string): boolean {
-  let result = false;
-  result = id.length === 15 && /^[1-9]\d{5}\d{2}((0[1-9])|(10|11|12))(([0-2][1-9])|10|20|30|31)\d{2}[0-9Xx]$/.test(id)
-  result = id.length === 18 && /^[1-9]\d{5}(18|19|([23]\d))\d{2}((0[1-9])|(10|11|12))(([0-2][1-9])|10|20|30|31)\d{3}[0-9Xx]$/.test(id)
-  return result
+  if (/^[1-9]\d{14}$/.test(id)) return validIdDate(id)
+  if (!/^[1-9]\d{16}[0-9Xx]$/.test(id) || !validIdDate(id)) return false
+  const weights = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2]
+  const checks = '10X98765432'
+  const sum = weights.reduce((total, weight, index) => total + Number(id[index]) * weight, 0)
+  return checks[sum % 11] === id[17].toUpperCase()
 }
-
-// export function EmailRegular(email: string): boolean {
-//   return /^[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+$/.test(email)
-// }
-export function isEmail(email: string) {
-  const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-  return re.test(email);
+export function isEmail(value: string): boolean { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) }
+/** Mainland China mobile-number shape; allocation and ownership are not verified. */
+export function isPhoneNumer(value: string | number): boolean { return /^1[3-9]\d{9}$/.test(String(value)) }
+export function isDomainName(value: string): boolean {
+  if (value.length > 253 || value.endsWith('.')) return false
+  const labels = value.split('.')
+  return labels.length > 1 && labels.every(label => /^(?!-)[A-Za-z0-9-]{1,63}(?<!-)$/.test(label)) && /^[A-Za-z]{2,63}$/.test(labels[labels.length - 1])
 }
-
-
-
-export function isPhoneNumer(phoneNumber: string | number): boolean {
-  let phone = String(phoneNumber);
-  return /^(13[0-9]|14[5|7]|15[0|1|2|3|5|6|7|8|9]|18[0|1|2|3|5|6|7|8|9])\d{8}$/.test(phone)
+export function isInternetUrl(value: string): boolean {
+  try { const url = new URL(value); return (url.protocol === 'http:' || url.protocol === 'https:') && Boolean(url.hostname) } catch { return false }
 }
-
-export function isDomainName(domainName: string): boolean {
-  return /^((?!-)[A-Za-z0-9-]{1,63}(?<!-)\\.)+[A-Za-z]{2,6}$/.test(domainName)
+/** Valid YYYY-M-D or YYYY-MM-DD calendar date. Legacy name retained. */
+export function isData(value: string): boolean {
+  const match = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(value)
+  return Boolean(match && validCalendarDate(Number(match[1]), Number(match[2]), Number(match[3])))
 }
-
-
-export function isInternetUrl(url: string): boolean {
-  let result = false;
-  result = result || /^http:\/\/([\w-]+\.)+[\w-]+(\/[\w-.\/?%&=]*)?$/.test(url)
-  result = result || /[a-zA-z]+:\/\/[^\s]*/.test(url)
-  return result
+export const isDate = isData
+export function isXml(value: string): boolean { return /^(?!\.)(?!.*[\\/])[^\0]+\.xml$/i.test(value) }
+export function isChinese(value: string): boolean { return /^\p{Script=Han}+$/u.test(value) }
+export function isIp(value: string): boolean {
+  const parts = value.split('.')
+  return parts.length === 4 && parts.every(part => /^(0|[1-9]\d{0,2})$/.test(part) && Number(part) <= 255)
 }
+export function isLowerCase(value: string): boolean { return /^[a-z]+$/.test(value) }
+export function isUpperCase(value: string): boolean { return /^[A-Z]+$/.test(value) }
+export function isAlphabets(value: string): boolean { return /^[A-Za-z]+$/.test(value) }
 
-
-export function isData(date: string): boolean {
-  return /^\d{4}-\d{1,2}-\d{1,2}/.test(date)
-}
-
-
-export function isXml(file: string): boolean {
-  return /^([a-zA-Z]+-?)+[a-zA-Z0-9]+\\.[x|X][m|M][l|L]$/.test(file)
-}
-
-
-export function isChinese(word: string): boolean {
-  return /^[\u4e00-\u9fa5]+$/.test(word)
-}
-
-
-export function isIp(ip: string): boolean {
-  return /^((?:(?:25[0-5]|2[0-4]\\d|[01]?\\d?\\d)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d?\\d))$/.test(ip)
-}
-
-/* 小写字母*/
-export function isLowerCase(str: string) {
-  const reg = /^[a-z]+$/;
-  return reg.test(str);
-}
-
-/* 大写字母*/
-export function isUpperCase(str: string) {
-  const reg = /^[A-Z]+$/;
-  return reg.test(str);
-}
-
-/* 大小写字母*/
-export function isAlphabets(str: string) {
-  const reg = /^[A-Za-z]+$/;
-  return reg.test(str);
-}
-
-
-const Regs = {
-  isAlphabets: /^[A-Za-z]+$/,
-  isUpperCase: /^[A-Z]+$/,
-  isLowerCase: /^[a-z]+$/,
-  isIp: /^((?:(?:25[0-5]|2[0-4]\\d|[01]?\\d?\\d)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d?\\d))$/,
-  isChinese: /^[\u4e00-\u9fa5]+$/,
-  isXml: /^([a-zA-Z]+-?)+[a-zA-Z0-9]+\\.[x|X][m|M][l|L]$/,
-  isData: /^\d{4}-\d{1,2}-\d{1,2}/,
-  isInternetUrl: [
-    /^http:\/\/([\w-]+\.)+[\w-]+(\/[\w-.\/?%&=]*)?$/,
-    /[a-zA-z]+:\/\/[^\s]*/,
-  ],
-  isDomainName: /^((?!-)[A-Za-z0-9-]{1,63}(?<!-)\\.)+[A-Za-z]{2,6}$/,
-  isPhoneNumer: /^(13[0-9]|14[5|7]|15[0|1|2|3|5|6|7|8|9]|18[0|1|2|3|5|6|7|8|9])\d{8}$/,
-  isEmail: /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/,
-  isId: [
-    /^[1-9]\d{5}\d{2}((0[1-9])|(10|11|12))(([0-2][1-9])|10|20|30|31)\d{2}[0-9Xx]$/,
-    /^[1-9]\d{5}(18|19|([23]\d))\d{2}((0[1-9])|(10|11|12))(([0-2][1-9])|10|20|30|31)\d{3}[0-9Xx]$/
-  ]
-}
-
+const validators: Record<string, (value: string) => boolean> = { isId, isEmail, isPhoneNumer, isDomainName, isInternetUrl, isData, isDate, isXml, isChinese, isIp, isLowerCase, isUpperCase, isAlphabets }
+/** Compatibility wrapper. Prefer named validator functions for type safety. */
 export default class Is {
-  constructor(public regs = Regs) {
-    this.regs = {
-      ...Regs,
-      ...this.regs
-    }
-    for (let i of Object.keys(this.regs)) {
-      (this as any)[i] = (args: string, reg?: string | RegExp): boolean => {
-        let regs = reg ?? Regs?.[i]
-        let res = Array.isArray(regs) ? regs.every(reg => reg.test(args)) : regs.test(args)
-        return res
-      }
-    }
-    return this
+  [key: string]: any
+  constructor(public regs: Record<string, RegExp | RegExp[]> = {}) {
+    for (const [name, validator] of Object.entries(validators)) this[name] = (value: string, custom?: string | RegExp) => custom ? (typeof custom === 'string' ? new RegExp(custom) : custom).test(value) : validator(value)
+    for (const [name, rule] of Object.entries(regs)) this[name] = (value: string) => (Array.isArray(rule) ? rule.some(item => item.test(value)) : rule.test(value))
   }
 }

@@ -1,0 +1,5 @@
+export type Unsubscribe=()=>void
+export interface Signal<T>{get():T;set(value:T):void;update(updater:(value:T)=>T):void;subscribe(listener:(value:T,previous:T)=>void):Unsubscribe}
+export function createSignal<T>(initial:T):Signal<T>{let value=initial;const listeners=new Set<(value:T,previous:T)=>void>();return{get:()=>value,set(next){if(Object.is(value,next))return;const previous=value;value=next;for(const listener of Array.from(listeners))listener(value,previous)},update(fn){this.set(fn(value))},subscribe(listener){listeners.add(listener);return()=>listeners.delete(listener)}}}
+export function computed<T>(compute:()=>T,dependencies:readonly Signal<any>[]):Signal<T>&{dispose():void}{const output=createSignal(compute()) as Signal<T>&{dispose():void};const unsubscribers=dependencies.map(dependency=>dependency.subscribe(()=>output.set(compute())));output.dispose=()=>{for(const unsubscribe of unsubscribers)unsubscribe()};return output}
+export function watch<T>(signal:Signal<T>,listener:(value:T,previous:T)=>void,immediate=false):Unsubscribe{if(immediate)listener(signal.get(),signal.get());return signal.subscribe(listener)}

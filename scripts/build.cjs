@@ -13,3 +13,10 @@ compile(['--noEmit']);
 // Fixed project-local output directory, never a user-supplied path.
 fs.rmSync(path.join(root, 'dist'), { recursive: true, force: true });
 compile([]);
+
+// Node treats .mjs as ESM. This wrapper exposes the same named values as the
+// CommonJS build without duplicating xlsx or changing the public runtime API.
+const built = require(path.join(root, 'dist/index.js'));
+const names = Object.keys(built).filter(name => name !== 'default' && /^[A-Za-z_$][\w$]*$/.test(name)).sort();
+const esm = `import packageExports from './index.js';\nexport const { ${names.join(', ')} } = packageExports;\nexport default packageExports.default;\n`;
+fs.writeFileSync(path.join(root, 'dist/index.mjs'), esm);
