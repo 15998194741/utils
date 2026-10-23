@@ -71,8 +71,8 @@ md5('hello world'); // '5eb63bbbe01eeed093cb22bb8f5acdc3'
 CommonJS works the same way:
 
 ```js
-const { add } = require('index-system/wasm');
-add(2, 3); // 5
+const { md5 } = require('index-system/wasm');
+md5('hello world'); // '5eb63bbbe01eeed093cb22bb8f5acdc3'
 ```
 
 The kernel initializes itself, so there is no init call to make. In Node it reads the binary from disk and instantiates it synchronously; in a browser or a bundler the binary is emitted as an asset and fetched over HTTP. Bundlers that understand the `import` condition, including Vite, webpack, Rollup, and esbuild, resolve the subpath and emit the binary for you.
@@ -81,9 +81,11 @@ The kernel is loaded on demand, but only when the subpath is imported. A consume
 
 ```ts
 async function main() {
-  const { add } = await import('index-system/wasm');
-  add(2, 3); // 5
+  const { md5 } = await import('index-system/wasm');
+  md5('hello world'); // '5eb63bbbe01eeed093cb22bb8f5acdc3'
 }
+
+main();
 ```
 
 With a bundler, the dynamic import becomes a separate chunk that is fetched the first time it is reached, so the binary does not delay the rest of the page.
@@ -855,6 +857,7 @@ The other scripts are:
 | `npm run build:all` | Builds both the npm package and the browser bundles |
 | `npm run build:wasm` | Builds the Rust kernel for the web and the node target |
 | `npm run check:wasm-bundle` | Builds a probe with Vite and fails if the kernel initialization was dropped |
+| `npm run verify:docs` | Runs every example in this file and checks the documented results |
 | `npm run lint` | Runs ESLint over the TypeScript sources and the build scripts |
 | `npm run format` | Rewrites the sources with Prettier |
 | `npm run release -- patch` | Bumps the version, builds, packs, publishes, and pushes |

@@ -71,8 +71,8 @@ md5('hello world'); // '5eb63bbbe01eeed093cb22bb8f5acdc3'
 CommonJS 用法相同：
 
 ```js
-const { add } = require('index-system/wasm');
-add(2, 3); // 5
+const { md5 } = require('index-system/wasm');
+md5('hello world'); // '5eb63bbbe01eeed093cb22bb8f5acdc3'
 ```
 
 内核会自行初始化，不需要调用 init。在 Node 中它从磁盘读取二进制并同步实例化；在浏览器或打包器中，二进制会作为资源输出并通过 HTTP 获取。支持 `import` 条件的打包器（Vite、webpack、Rollup、esbuild）都能解析该子路径并自动输出二进制文件。
@@ -81,9 +81,11 @@ add(2, 3); // 5
 
 ```ts
 async function main() {
-  const { add } = await import('index-system/wasm');
-  add(2, 3); // 5
+  const { md5 } = await import('index-system/wasm');
+  md5('hello world'); // '5eb63bbbe01eeed093cb22bb8f5acdc3'
 }
+
+main();
 ```
 
 使用打包器时，动态导入会变成独立 chunk，在首次执行到该处时才被拉取，因此二进制文件不会拖慢页面其余部分。
@@ -853,6 +855,7 @@ build 先检查类型，再清理项目内 dist 目录并生成 JavaScript 和�
 | `npm run build:all` | 同时构建 npm 包与浏览器产物 |
 | `npm run build:wasm` | 构建 Rust 内核的 web 与 node 两套产物 |
 | `npm run check:wasm-bundle` | 用 Vite 构建探针包，内核初始化被摇掉时报错 |
+| `npm run verify:docs` | 运行本文所有示例并核对文档中的结果 |
 | `npm run lint` | 对 TypeScript 源码和构建脚本运行 ESLint |
 | `npm run format` | 使用 Prettier 重写源码 |
 | `npm run release -- patch` | 升版本、构建、打包、发布并推送 |

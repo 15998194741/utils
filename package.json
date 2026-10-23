@@ -39,6 +39,7 @@
     "build:wasm:web": "node scripts/wasm-pack.cjs web",
     "build:wasm:node": "node scripts/wasm-pack.cjs nodejs",
     "test": "npm run build && node --test scripts/test.cjs",
+    "verify:docs": "node scripts/verify-docs.cjs",
     "check:wasm-bundle": "node scripts/check-wasm-bundle.cjs",
     "lint": "eslint \"src/**/*.ts\" \"scripts/**/*.cjs\" \"index.ts\" \"sample.ts\" \"vite.config.mts\" \"vite.esm.config.mts\"",
     "format": "prettier --write \"src/**/*.ts\" \"scripts/**/*.cjs\" \"*.ts\" \"*.mts\"",

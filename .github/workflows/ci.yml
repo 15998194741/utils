@@ -44,6 +44,9 @@ jobs:
       - name: Test
         run: node --test scripts/test.cjs
 
+      - name: Verify the documented examples
+        run: node scripts/verify-docs.cjs
+
       - name: Verify the wasm entry survives bundling
         run: node scripts/check-wasm-bundle.cjs
 

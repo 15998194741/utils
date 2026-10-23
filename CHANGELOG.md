@@ -50,6 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   megabyte is about 13 times faster for base64 and 6 times faster for hex,
   and the language level `Uint8Array.prototype.toBase64` and `toHex` are used
   when the runtime has them.
+- The examples in the README no longer call a kernel function that was
+  removed before the release. The CommonJS example and the dynamic import
+  example still referred to `add`, which the kernel no longer exports, so
+  copying them threw `add is not a function`.
 
 ### Changed
 
@@ -121,6 +125,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The workflow pins one npm version across the Node matrix, moves the checkout
   and setup-node actions to v5, and pins the runner to `ubuntu-24.04` instead
   of the floating `ubuntu-latest` label.
+- `npm run verify:docs` runs every example in the README files and compares
+  the documented results with what the code actually produced. It also reports
+  a documented expression that never ran, which is how an example can call an
+  API that no longer exists without anything failing.
 
 ### Deprecated
 
