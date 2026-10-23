@@ -7,20 +7,50 @@ const root = path.resolve(__dirname, '..');
 const registry = 'https://registry.npmjs.org/';
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run') || process.env.npm_config_dry_run === 'true';
+const allowEmpty = args.includes('--allow-empty');
 const bump = args.find(arg => !arg.startsWith('--')) || 'patch';
 const npmCli = process.env.npm_execpath;
 let published = false;
 let version;
 
-function run(command, parameters, capture = false) {
+function run(command, parameters, capture = false, allowFailure = false) {
   const result = spawnSync(command, parameters, {
     cwd: root,
     stdio: capture ? ['inherit', 'pipe', 'inherit'] : 'inherit',
     encoding: 'utf8'
   });
   if (result.error) throw result.error;
-  if (result.status !== 0) throw new Error(`${command} ${parameters.join(' ')} failed (${result.status}).`);
+  if (result.status !== 0) {
+    if (allowFailure) return '';
+    throw new Error(`${command} ${parameters.join(' ')} failed (${result.status}).`);
+  }
   return capture ? result.stdout.trim() : '';
+}
+
+/**
+ * Refuse to cut a release when there is nothing new to release.
+ *
+ * A release that only bumps the version republishes identical code under a new
+ * number. That is almost never intentional, and repeating it by accident is
+ * hard to undo because the npm version can never be reused. The check is
+ * deliberately narrow: it only aborts when the working tree is clean AND no
+ * commit exists after the most recent release tag. Any new commit - or any
+ * uncommitted change - means there is something to release and the check
+ * stays silent. Pass --allow-empty to override it.
+ */
+function assertSomethingToRelease(override) {
+  if (override) return;
+  const status = run('git', ['status', '--porcelain'], true);
+  if (status) return;
+  const lastTag = run('git', ['describe', '--tags', '--abbrev=0', '--match', 'v*'], true, true);
+  if (!lastTag) return;
+  const ahead = run('git', ['rev-list', '--count', `${lastTag}..HEAD`], true, true);
+  if (ahead && Number(ahead) > 0) return;
+  throw new Error(
+    `Nothing to release: the working tree is clean and no commit exists after ${lastTag}. ` +
+      'Refusing to bump the version and publish identical code again. ' +
+      'Make a change and commit it, or pass --allow-empty if a version-only release is intended.'
+  );
 }
 
 function npm(parameters, capture = false) {
@@ -29,8 +59,13 @@ function npm(parameters, capture = false) {
 
 try {
   if (!npmCli) throw new Error('Run this script through npm run release.');
-  if (!['patch', 'minor', 'major'].includes(bump) || args.some(arg => arg.startsWith('--') && arg !== '--dry-run') || args.filter(arg => !arg.startsWith('--')).length > 1) {
-    throw new Error('Usage: npm run release -- [patch|minor|major] [--dry-run]');
+  const knownFlags = ['--dry-run', '--allow-empty'];
+  if (
+    !['patch', 'minor', 'major'].includes(bump) ||
+    args.some(arg => arg.startsWith('--') && !knownFlags.includes(arg)) ||
+    args.filter(arg => !arg.startsWith('--')).length > 1
+  ) {
+    throw new Error('Usage: npm run release -- [patch|minor|major] [--dry-run] [--allow-empty]');
   }
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
   if (pkg.private) throw new Error('Cannot publish a private package.');
@@ -51,6 +86,7 @@ try {
     if (run('git', ['diff', '--cached', '--name-only'], true)) {
       run('git', ['commit', '-m', 'chore: prepare release']);
     }
+    assertSomethingToRelease(allowEmpty);
     npm(['version', bump, '-m', 'chore: release %s']);
     version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
     npm(['run', 'build']);
