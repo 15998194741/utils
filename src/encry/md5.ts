@@ -90,15 +90,35 @@ var wordToHex = function (lValue:any) {
 };
 
 var uTF8Encode = function (string) {
-  string = string.replace(/\x0d\x0a/g, "\x0a");
   var output = "";
   for (var n = 0; n < string.length; n++) {
     var c = string.charCodeAt(n);
     if (c < 128) {
       output += String.fromCharCode(c);
-    } else if ((c > 127) && (c < 2048)) {
+    } else if (c < 2048) {
       output += String.fromCharCode((c >> 6) | 192);
       output += String.fromCharCode((c & 63) | 128);
+    } else if (c >= 0xd800 && c <= 0xdbff) {
+      // A character outside the Basic Multilingual Plane is stored as a
+      // surrogate pair, and it takes four UTF-8 bytes. Encoding the two
+      // halves on their own produced a digest that no other MD5
+      // implementation agrees with.
+      var low = n + 1 < string.length ? string.charCodeAt(n + 1) : 0;
+      if (low >= 0xdc00 && low <= 0xdfff) {
+        var codePoint = (c - 0xd800) * 0x400 + (low - 0xdc00) + 0x10000;
+        output += String.fromCharCode((codePoint >> 18) | 240);
+        output += String.fromCharCode(((codePoint >> 12) & 63) | 128);
+        output += String.fromCharCode(((codePoint >> 6) & 63) | 128);
+        output += String.fromCharCode((codePoint & 63) | 128);
+        n++;
+      } else {
+        // An unpaired surrogate is not valid text, and encodes as the
+        // replacement character.
+        output += "\xef\xbf\xbd";
+      }
+    } else if (c >= 0xdc00 && c <= 0xdfff) {
+      // An unpaired low surrogate is not valid text either.
+      output += "\xef\xbf\xbd";
     } else {
       output += String.fromCharCode((c >> 12) | 224);
       output += String.fromCharCode(((c >> 6) & 63) | 128);

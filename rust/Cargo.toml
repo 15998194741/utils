@@ -1,0 +1,38 @@
+[package]
+name = "index-system-wasm"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Rust/WASM compute kernel exposed to the index-system TypeScript package."
+
+[lib]
+# cdylib produces the .wasm artifact; rlib keeps the crate testable with a
+# plain `cargo test` on the host.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+md-5 = "0.10"
+
+# Release profile lives here rather than in a workspace root, because there is
+# only one crate. The settings trade a little speed for a much smaller
+# binary, which matters because the artifact is committed to the repository
+# and shipped inside the npm tarball.
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+# wasm-pack ships a binaryen build that predates the bulk memory proposal, so
+# it rejects the memory.copy/memory.fill instructions that current Rust emits
+# by default. The optimizer is optional, so turn it off rather than pin the
+# whole crate to an older compiler. Revisit when a newer wasm-pack ships a
+# current binaryen.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+# Promote this crate to a workspace only when a second crate actually shows
+# up: add a [workspace] section with members = ["crates/*"], move this
+# package under crates/, and move [profile.release] back to the workspace root.

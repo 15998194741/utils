@@ -255,6 +255,68 @@ test('schemas parse nested data, optional values, unions and refinements',()=>{c
 test('signals, computed values and watches notify snapshots',()=>{const count=u.createSignal(1);const doubled=u.computed(()=>count.get()*2,[count]);const seen=[];const stop=u.watch(doubled,(v,p)=>seen.push([v,p]),true);count.set(2);count.set(2);assert.deepEqual(seen,[[2,2],[4,2]]);stop();doubled.dispose();count.set(3);assert.equal(doubled.get(),4)});
 test('state machines apply guards, actions and subscriptions',()=>{const machine=u.createStateMachine({initial:'idle',context:{count:0},states:{idle:{start:{target:'running',action:c=>c.count++}},running:{stop:'idle',start:{target:'running',guard:()=>false}}}});const seen=[];machine.subscribe((s,p)=>seen.push([s,p]));assert.ok(machine.send('start'));assert.equal(machine.context.count,1);assert.equal(machine.send('start'),false);assert.ok(machine.send('stop'));assert.deepEqual(seen,[['running','idle'],['idle','running']])});
 test('diff creates immutable patches and array set differences',()=>{const left={a:1,n:{x:1},remove:true},right={a:2,n:{x:1,y:2}};const patch=u.objectDiff(left,right);assert.deepEqual(u.applyPatch(left,patch),right);assert.deepEqual(left,{a:1,n:{x:1},remove:true});assert.deepEqual(u.arrayDiff([{x:1},{x:2}],[{x:2},{x:3}]),{added:[{x:3}],removed:[{x:1}]});assert.throws(()=>u.applyPatch({},[{op:'add',path:['missing','x'],value:1}]),/Invalid/)});
+test('array diff matches entries by value and keeps the original order',()=>{
+  // The lookup key narrows the candidates, isEqual still decides.
+  assert.deepEqual(u.arrayDiff([1,2,3],[3,2,1]),{added:[],removed:[]});
+  assert.deepEqual(u.arrayDiff([1,2],[2,3]),{added:[3],removed:[1]});
+  assert.deepEqual(u.arrayDiff([{x:1},{x:2}],[{x:2},{x:3}]),{added:[{x:3}],removed:[{x:1}]});
+  // Key order does not matter, but the prototype does.
+  assert.deepEqual(u.arrayDiff([{a:1,b:2}],[{b:2,a:1}]),{added:[],removed:[]});
+  assert.deepEqual(u.arrayDiff([{a:1}],[{a:1,b:2}]),{added:[{a:1,b:2}],removed:[{a:1}]});
+  // Zero and negative zero are different values, NaN equals itself.
+  assert.deepEqual(u.arrayDiff([0],[ -0]),{added:[-0],removed:[0]});
+  assert.deepEqual(u.arrayDiff([NaN],[NaN]),{added:[],removed:[]});
+  // Dates compare by value, class instances by identity.
+  assert.deepEqual(u.arrayDiff([new Date(0)],[new Date(0)]),{added:[],removed:[]});
+  const shared={v:1};
+  assert.deepEqual(u.arrayDiff([shared],[shared]),{added:[],removed:[]});
+  // Two distinct objects with the same content are equal by value.
+  assert.deepEqual(u.arrayDiff([{v:1}],[{v:1}]),{added:[],removed:[]});
+  // Cyclic entries are compared like any other value.
+  const cyclic={n:1};cyclic.self=cyclic;
+  assert.deepEqual(u.arrayDiff([cyclic],[{n:1}]),{added:[{n:1}],removed:[cyclic]});
+});
+test('array diff handles a large list without a quadratic cost',()=>{
+  const left=Array.from({length:5000},(_,i)=>({id:i}));
+  const right=Array.from({length:5000},(_,i)=>({id:i+1}));
+  const started=process.hrtime.bigint();
+  const result=u.arrayDiff(left,right);
+  const elapsed=Number(process.hrtime.bigint()-started)/1e6;
+  assert.equal(result.added.length,1);
+  assert.equal(result.removed.length,1);
+  assert.ok(elapsed<2000,`arrayDiff took ${elapsed.toFixed(0)}ms for 5000 entries`);
+});
+test('md5 follows the standard for every kind of text',()=>{
+  assert.equal(u.md5(''),'d41d8cd98f00b204e9800998ecf8427e');
+  assert.equal(u.md5('hello'),'5d41402abc4b2a76b9719d911017c592');
+  assert.equal(u.md5('hello world'),'5eb63bbbe01eeed093cb22bb8f5acdc3');
+  // Non-ASCII text is encoded as UTF-8.
+  assert.equal(u.md5('中文测试'),'089b4943ea034acfa445d050c7913e55');
+  // A character outside the Basic Multilingual Plane is a surrogate pair and
+  // takes four UTF-8 bytes.
+  assert.equal(u.md5('🎉emoji'),'a0f263caee344911f0a9a01e933e026e');
+  assert.equal(u.md5('😀'),'2a02eac39d716a70ecf37579185927b6');
+  // Line endings are hashed as they are.
+  assert.equal(u.md5('a\r\nb'),'65d5f03c46e62e3f2babbe712d2ce464');
+  assert.equal(u.md5('a\rb'),'2132b3bda00d60e52785208164bff1c8');
+});
+test('byte encoders handle large buffers and keep their exact output',()=>{
+  const bytes=new Uint8Array(100000);
+  for(let i=0;i<bytes.length;i++)bytes[i]=i&255;
+  const hex=u.bytesToHex(bytes);
+  assert.equal(hex.length,bytes.length*2);
+  assert.equal(hex.slice(0,8),'00010203');
+  assert.equal(hex.slice(-8),'9c9d9e9f');
+  const base64=u.bytesToBase64(bytes);
+  assert.equal(base64,Buffer.from(bytes).toString('base64'));
+  assert.equal(u.bytesToHex([]),'');
+  assert.equal(u.bytesToBase64([]),'');
+  // A view is converted with its own boundaries.
+  assert.equal(u.bytesToHex(bytes.subarray(2,5)),'020304');
+  assert.equal(u.bytesToBase64(bytes.subarray(2,5)),'AgME');
+  assert.throws(()=>u.bytesToHex([256]),RangeError);
+  assert.throws(()=>u.bytesToBase64([-1]),RangeError);
+});
 test('scheduler respects concurrency, priority for queued work, and idle',async()=>{const scheduler=u.createScheduler(1),order=[];let release;const gate=new Promise(resolve=>release=resolve);const first=scheduler.add(async()=>{order.push('first');await gate});const low=scheduler.add(()=>order.push('low'),0);const high=scheduler.add(()=>order.push('high'),10);assert.equal(scheduler.active,1);assert.equal(scheduler.pending,2);release();await Promise.all([first,low,high]);await scheduler.onIdle();assert.deepEqual(order,['first','high','low']);assert.throws(()=>u.createScheduler(0),RangeError)});
 test('unit conversions use documented base factors',()=>{assert.equal(u.convertLength(1,'km','m'),1000);assert.ok(Math.abs(u.convertLength(12,'in','ft')-1)<1e-12);assert.equal(u.convertWeight(1,'kg','g'),1000);assert.equal(u.celsiusToFahrenheit(100),212);assert.equal(u.fahrenheitToCelsius(32),0)});
 test('CommonJS and ESM package entries expose matching functions',async()=>{const esm=await import(require('node:url').pathToFileURL(require('node:path').resolve('dist/esm/index.js')).href+'?test');assert.equal(typeof esm.unique,'function');assert.deepEqual(esm.unique([1,1,2]),u.unique([1,1,2]));assert.equal(esm.default,'欢迎使用');const cjsNames=Object.keys(u).filter(name=>name!=='default').sort();const esmNames=Object.keys(esm).filter(name=>name!=='default').sort();assert.deepEqual(esmNames,cjsNames)});
@@ -266,3 +328,4 @@ require('./test.path.cjs');
 require('./test.object.cjs');
 require('./test.array.cjs');
 require('./test.function.cjs');
+require('./test.wasm.cjs');

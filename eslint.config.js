@@ -4,7 +4,7 @@ const tsPlugin = require('@typescript-eslint/eslint-plugin');
 const prettierConfig = require('eslint-config-prettier/flat');
 
 module.exports = [
-  { ignores: ['dist/**', 'dist-umd/**', 'webpack/**', 'node_modules/**', 'coverage/**'] },
+  { ignores: ['dist/**', 'dist-umd/**', 'webpack/**', 'node_modules/**', 'coverage/**', 'rust/**'] },
 
   {
     files: ['**/*.js', '**/*.cjs'],

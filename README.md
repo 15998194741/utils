@@ -56,7 +56,39 @@ The ES module entry uses static export statements, so a bundler can drop every h
 import { unique, camelCase } from 'index-system';
 ```
 
-A consumer that imports only `unique` ends up with a bundle of roughly 100 bytes instead of the full 1.3 MB library, and the bundled xlsx dependency is left out entirely because only the Excel helpers import it. This works with webpack, Vite, Rollup, esbuild, and any other bundler that understands the `import` condition. The `sideEffects: false` field in package.json tells bundlers that importing the package has no side effects.
+A consumer that imports only `unique` ends up with a bundle of roughly 100 bytes instead of the full 1.3 MB library, and the bundled xlsx dependency is left out entirely because only the Excel helpers import it. This works with webpack, Vite, Rollup, esbuild, and any other bundler that understands the `import` condition. The `sideEffects` field in package.json lists only the WebAssembly kernel entry, which does load a module; every other module in the package is free of side effects, so a bundler may drop the ones a consumer does not import.
+
+### Rust and WebAssembly kernel
+
+The package also ships a Rust kernel compiled to WebAssembly. It is published as a separate subpath, so importing it never affects the tree-shaking of the JavaScript helpers above.
+
+```ts
+import { md5 } from 'index-system/wasm';
+
+md5('hello world'); // '5eb63bbbe01eeed093cb22bb8f5acdc3'
+```
+
+CommonJS works the same way:
+
+```js
+const { add } = require('index-system/wasm');
+add(2, 3); // 5
+```
+
+The kernel initializes itself, so there is no init call to make. In Node it reads the binary from disk and instantiates it synchronously; in a browser or a bundler the binary is emitted as an asset and fetched over HTTP. Bundlers that understand the `import` condition, including Vite, webpack, Rollup, and esbuild, resolve the subpath and emit the binary for you.
+
+The kernel is loaded on demand, but only when the subpath is imported. A consumer that never imports `index-system/wasm` never downloads the binary. A static import loads the whole kernel at once, because a WebAssembly module is a single unit that cannot be split per function. A dynamic import defers the download until the code actually runs:
+
+```ts
+async function main() {
+  const { add } = await import('index-system/wasm');
+  add(2, 3); // 5
+}
+```
+
+With a bundler, the dynamic import becomes a separate chunk that is fetched the first time it is reached, so the binary does not delay the rest of the page.
+
+The `sideEffects` field in package.json is a list rather than `false`, because the kernel entry does have side effects: it loads the WebAssembly module. Leaving it out of that list lets a bundler drop the initialization while the build still succeeds, which only fails at runtime. `npm run check:wasm-bundle` builds a probe with the project bundler and fails if the initialization is ever removed from the bundle.
 
 ## API
 
@@ -762,13 +794,29 @@ sortedIndex([1, 3, 5, 7], 4); // 2
 
 ### Checksums
 
-`md5(text)` returns the MD5 digest of a string as 32 lowercase hexadecimal characters. MD5 is a fast checksum, not a cryptographic hash: use it for file fingerprints, cache keys, and change detection, but never for password storage, signatures, or anything that needs collision resistance. Non-ASCII input is encoded as UTF-8.
+`md5(text)` returns the MD5 digest of a string as 32 lowercase hexadecimal characters. MD5 is a fast checksum, not a cryptographic hash: use it for file fingerprints, cache keys, and change detection, but never for password storage, signatures, or anything that needs collision resistance. The text is encoded as UTF-8, and the digest matches `crypto.createHash('md5')` for ASCII, non-ASCII, and characters outside the Basic Multilingual Plane. The `index-system/wasm` subpath offers the same digest from the Rust kernel, which is faster on large inputs.
 
 ```ts
 import { md5 } from 'index-system';
 
 md5('hello world'); // '5eb63bbbe01eeed093cb22bb8f5acdc3'
 ```
+
+### Rust and WebAssembly kernel
+
+The `index-system/wasm` subpath exposes the Rust kernel. It is a separate entry point, so importing it never affects the tree-shaking of the JavaScript helpers above.
+
+| Function | Return value and behavior |
+| --- | --- |
+| `md5(text)` | The MD5 digest of a string, as 32 lowercase hexadecimal characters |
+
+```ts
+import { md5 } from 'index-system/wasm';
+
+md5('hello world'); // '5eb63bbbe01eeed093cb22bb8f5acdc3'
+```
+
+The kernel `md5` produces exactly the same digest as the JavaScript `md5` in the package entry, and it is about 23 times faster on a megabyte of text. In Node, `crypto.createHash('md5')` is still the fastest option, because it is native; the kernel is the fast path for a browser, which has no synchronous MD5 of its own.
 
 ## Compatibility and known limitations
 
@@ -780,6 +828,8 @@ md5('hello world'); // '5eb63bbbe01eeed093cb22bb8f5acdc3'
 - MD5, the Is validation class, and the xlsx re-export in src/excel/excel.ts are not exported from the package entry.
 - Browser FileReader behavior has been tested with a mock, not verified in a real browser.
 - `xlsx` is installed from the official SheetJS CDN rather than the npm registry, because the registry copy is frozen at 0.18.5 and still carries the prototype-pollution and ReDoS advisories. The installed build is 0.20.3. Some scanners that read advisory ranges without an npm release to compare against may still report those two advisories against the CDN build; npm audit and the GitHub advisory API both treat 0.20.3 as fixed.
+- The WebAssembly kernel lives behind the `index-system/wasm` subpath and is not part of the package entry, so it does not change how the JavaScript helpers are tree-shaken. It needs a runtime that can instantiate WebAssembly, and in a browser the binary has to be served over HTTP: a bundler emits it as an asset automatically, a plain `<script>` tag does not.
+- TypeScript projects that resolve modules the old way, with `moduleResolution` set to `node`, resolve the subpath through the `typesVersions` field rather than the `exports` map. Projects that use `node16`, `nodenext`, or `bundler` resolution read the `exports` map directly.
 
 ## Local development
 
@@ -803,12 +853,14 @@ The other scripts are:
 | --- | --- |
 | `npm run build:umd` | Builds the browser bundles with Vite into dist-umd |
 | `npm run build:all` | Builds both the npm package and the browser bundles |
+| `npm run build:wasm` | Builds the Rust kernel for the web and the node target |
+| `npm run check:wasm-bundle` | Builds a probe with Vite and fails if the kernel initialization was dropped |
 | `npm run lint` | Runs ESLint over the TypeScript sources and the build scripts |
 | `npm run format` | Rewrites the sources with Prettier |
 | `npm run release -- patch` | Bumps the version, builds, packs, publishes, and pushes |
 | `npm run versionAdd` | Bumps the patch version only |
 
-The GitHub Actions workflow in .github/workflows/ci.yml installs, lints, builds, tests, and verifies the packed tarball contents on Node 20.19, 22.12, and 24.
+The GitHub Actions workflow in .github/workflows/ci.yml installs, lints, builds, tests, checks that the kernel still survives bundling, and verifies the packed tarball contents on Node 20.19, 22.12, and 24.
 
 ### Browser bundle
 
@@ -866,6 +918,43 @@ src/
 ├── unit/        # Length, weight, and temperature conversion
 └── index.ts     # Module exports
 ```
+
+### Rust and WebAssembly kernel
+
+The Rust kernel lives in `rust/`, and the thin wrappers that expose it live in `wasm/`:
+
+```text
+rust/                 # The Rust crate
+├── Cargo.toml        #   Package and release profile in one file
+├── Cargo.lock        #   Committed, so the Rust build is reproducible
+├── src/lib.rs        #   The kernel itself
+└── pkg/{web,node}/   #   The compiled artifacts, committed to the repository
+wasm/                 # The hand written wrappers
+├── index.cjs         #   CommonJS entry
+├── index.mjs         #   ES module entry, for Node and for bundlers
+└── index.d.ts        #   Hand written types
+```
+
+Building the kernel needs a Rust toolchain, the `wasm32-unknown-unknown` target, and wasm-pack:
+
+```bash
+rustup target add wasm32-unknown-unknown
+cargo install wasm-pack
+
+npm run build:wasm
+```
+
+| Command | Purpose |
+| --- | --- |
+| `npm run build:wasm` | Builds both targets into rust/pkg |
+| `npm run build:wasm:web` | Builds only the web target, for bundlers and browsers |
+| `npm run build:wasm:node` | Builds only the node target |
+| `npm run check:wasm-bundle` | Builds a probe with Vite and fails if the kernel initialization was dropped |
+| `cargo test` | Runs the Rust unit tests |
+
+The compiled artifacts under `rust/pkg` are committed, so `npm run build` only copies them into `dist/wasm` and CI needs no Rust toolchain. The trade-off is that a change to `rust/src/lib.rs` has no effect until `npm run build:wasm` has been run and the new artifacts have been committed. Nothing in the current CI run detects that drift, so rebuild and commit the artifacts together with the source change.
+
+wasm-pack ships a binaryen build that predates the bulk memory proposal and rejects the instructions that current Rust emits by default, so the optimizer is turned off in the package metadata. The artifact is larger than an optimized one would be.
 
 ## Publishing
 

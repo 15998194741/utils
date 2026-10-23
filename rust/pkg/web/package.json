@@ -1,0 +1,16 @@
+{
+  "name": "index-system-wasm",
+  "type": "module",
+  "description": "Rust/WASM compute kernel exposed to the index-system TypeScript package.",
+  "version": "0.1.0",
+  "files": [
+    "index_system_wasm_bg.wasm",
+    "index_system_wasm.js",
+    "index_system_wasm.d.ts"
+  ],
+  "main": "index_system_wasm.js",
+  "types": "index_system_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

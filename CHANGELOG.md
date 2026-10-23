@@ -30,6 +30,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `src/excel/excel.ts` was removed. It re-exported the whole `xlsx` package but
   was unreachable from the package entry, and it made bundlers include xlsx
   twice for CommonJS consumers.
+- `md5` now follows the standard for every kind of text. The implementation
+  encoded a string by walking its UTF-16 code units, so a character outside
+  the Basic Multilingual Plane, such as an emoji, was encoded as two separate
+  three-byte sequences and produced a digest that no other MD5 implementation
+  agrees with. It also folded `\r\n` into `\n` before hashing. Both are gone:
+  the digest now matches `crypto.createHash('md5')` for ASCII, non-ASCII, and
+  astral input, and for text with any line endings. Digests of strings that
+  contain a carriage return, a line feed pair, or a character above U+FFFF
+  change with this release.
+- `arrayDiff` no longer compares every entry of one side against every entry
+  of the other side. The quadratic comparison made a list of 16,000 records
+  take 80 seconds. The entries are now indexed by a key that is consistent
+  with `isEqual`, so only the few candidates that can still be equal are
+  compared in full. The result is identical, and the cost is linear: the same
+  list now takes 39 milliseconds, and 100,000 records take 265 milliseconds.
+- `bytesToBase64` and `bytesToHex` no longer build their result one character
+  at a time, which reallocated the string on every step. Converting a
+  megabyte is about 13 times faster for base64 and 6 times faster for hex,
+  and the language level `Uint8Array.prototype.toBase64` and `toHex` are used
+  when the runtime has them.
 
 ### Changed
 
@@ -44,7 +64,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the `module` and `exports.import` fields point at the new path. Importing the
   package by name is unaffected; only a deep import of the old file path
   changes, and the `exports` map did not allow it before either.
-- `package.json` now declares `sideEffects: false`, which lets bundlers drop the
+- `package.json` declares `sideEffects` as a list that only covers the
+  WebAssembly kernel entry, which does load a module. Every other module in
+  the package is free of side effects, so a bundler may still drop the
   package entirely when a consumer imports nothing from it.
 - `xlsx` is installed from the official SheetJS distribution instead of the npm
   registry mirror, which drops the reported prototype-pollution and ReDoS advisories.
@@ -91,6 +113,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `.prettierignore`.
 - A GitHub Actions workflow that installs, lints, builds, tests, and verifies the
   packed tarball contents on Node 20.19, 22.12, and 24.
+- A Rust kernel compiled to WebAssembly, published as the `index-system/wasm`
+  subpath so that it never affects the tree-shaking of the JavaScript helpers.
+  The entry initializes itself, works in Node and in the browser, and is
+  verified in a real browser. It currently exposes `md5`, which is about 23
+  times faster than the JavaScript implementation on a megabyte of text.
+- The workflow pins one npm version across the Node matrix, moves the checkout
+  and setup-node actions to v5, and pins the runner to `ubuntu-24.04` instead
+  of the floating `ubuntu-latest` label.
 
 ### Deprecated
 

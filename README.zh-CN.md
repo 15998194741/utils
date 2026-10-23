@@ -56,7 +56,39 @@ ES module 入口使用静态导出语句，打包器可以丢弃使用方没有�
 import { unique, camelCase } from 'index-system';
 ```
 
-只导入 `unique` 的使用方，最终产物约 100 字节，而不是完整的 1.3 MB 库；打包进来的 xlsx 依赖也会被完全排除，因为只有 Excel 相关函数才会引用它。webpack、Vite、Rollup、esbuild 以及任何支持 `import` 条件的打包器都能做到这一点。package.json 中的 `sideEffects: false` 字段用于告诉打包器：导入本包不会产生副作用。
+只导入 `unique` 的使用方，最终产物约 100 字节，而不是完整的 1.3 MB 库；打包进来的 xlsx 依赖也会被完全排除，因为只有 Excel 相关函数才会引用它。webpack、Vite、Rollup、esbuild 以及任何支持 `import` 条件的打包器都能做到这一点。package.json 中的 `sideEffects` 字段只列出了 WebAssembly 内核入口（它确实需要加载模块），包内其余模块都没有副作用，打包器可以丢弃使用方没有导入的部分。
+
+### Rust 与 WebAssembly 内核
+
+本包还提供一个用 Rust 编译成 WebAssembly 的内核。它通过独立子路径发布，导入它不会影响上面 JavaScript 工具函数的按需导入。
+
+```ts
+import { md5 } from 'index-system/wasm';
+
+md5('hello world'); // '5eb63bbbe01eeed093cb22bb8f5acdc3'
+```
+
+CommonJS 用法相同：
+
+```js
+const { add } = require('index-system/wasm');
+add(2, 3); // 5
+```
+
+内核会自行初始化，不需要调用 init。在 Node 中它从磁盘读取二进制并同步实例化；在浏览器或打包器中，二进制会作为资源输出并通过 HTTP 获取。支持 `import` 条件的打包器（Vite、webpack、Rollup、esbuild）都能解析该子路径并自动输出二进制文件。
+
+内核是按需加载的，但前提是导入了这个子路径。从不导入 `index-system/wasm` 的使用方永远不会下载二进制文件。静态导入会一次性加载整个内核，因为 WebAssembly 模块是一个不可按函数拆分的整体；动态导入则把下载推迟到代码真正执行时：
+
+```ts
+async function main() {
+  const { add } = await import('index-system/wasm');
+  add(2, 3); // 5
+}
+```
+
+使用打包器时，动态导入会变成独立 chunk，在首次执行到该处时才被拉取，因此二进制文件不会拖慢页面其余部分。
+
+package.json 中的 `sideEffects` 是数组而不是 `false`，因为内核入口确实有副作用：它会加载 WebAssembly 模块。如果不把它列进去，打包器会在构建成功的前提下丢弃这段初始化，只有运行时才会报错。`npm run check:wasm-bundle` 会用项目自身的打包器构建一个探针包，一旦初始化被摇掉就报错。
 
 ## API
 
@@ -760,13 +792,29 @@ sortedIndex([1, 3, 5, 7], 4); // 2
 
 ### 校验和
 
-`md5(text)` 返回字符串的 MD5 摘要，形式为 32 位小写十六进制。MD5 是快速校验和，不是密码学哈希：可用于文件指纹、缓存 key 和变更检测，但绝不能用于密码存储、签名或任何需要抗碰撞的场景。非 ASCII 输入按 UTF-8 编码。
+`md5(text)` 返回字符串的 MD5 摘要，形式为 32 位小写十六进制。MD5 是快速校验和，不是密码学哈希：可用于文件指纹、缓存 key 和变更检测，但绝不能用于密码存储、签名或任何需要抗碰撞的场景。文本按 UTF-8 编码，摘要与 `crypto.createHash('md5')` 一致，ASCII、非 ASCII 以及基本多文种平面之外的字符都相同。`index-system/wasm` 子路径由 Rust 内核提供同样的摘要，在大文本上更快。
 
 ```ts
 import { md5 } from 'index-system';
 
 md5('hello world'); // '5eb63bbbe01eeed093cb22bb8f5acdc3'
 ```
+
+### Rust 与 WebAssembly 内核
+
+`index-system/wasm` 子路径暴露 Rust 内核。它是独立入口，导入它不会影响上面 JavaScript 工具函数的按需导入。
+
+| 函数 | 返回值与行为 |
+| --- | --- |
+| `md5(text)` | 字符串的 MD5 摘要，形式为 32 位小写十六进制 |
+
+```ts
+import { md5 } from 'index-system/wasm';
+
+md5('hello world'); // '5eb63bbbe01eeed093cb22bb8f5acdc3'
+```
+
+内核版 `md5` 与包入口的 JavaScript `md5` 摘要完全一致，在 1 MB 文本上快约 23 倍。在 Node 中 `crypto.createHash('md5')` 仍是最快的方案，因为它是原生实现；内核的价值在浏览器 —— 那里没有同步的 MD5 可用。
 
 ## 兼容性与已知限制
 
@@ -778,6 +826,8 @@ md5('hello world'); // '5eb63bbbe01eeed093cb22bb8f5acdc3'
 - MD5、校验类 Is 和 src/excel/excel.ts 的 xlsx 再导出未通过包入口导出。
 - 浏览器 FileReader 行为通过模拟测试验证，尚未完成真实浏览器验证。
 - `xlsx` 从 SheetJS 官方 CDN 安装，而不是 npm registry，因为 registry 上的版本冻结在 0.18.5，且仍带有原型污染和 ReDoS 公告。当前安装的是 0.20.3。有些扫描器因为公告数据里没有可对照的 npm 发布版本号，可能仍会对 CDN 版本报告这两条公告，但 `npm audit` 和 GitHub advisory API 都认为 0.20.3 已修复。
+- WebAssembly 内核位于 `index-system/wasm` 子路径，不属于包入口，因此不会影响 JavaScript 工具函数的按需导入。它需要能实例化 WebAssembly 的运行时；在浏览器中二进制文件必须通过 HTTP 提供：打包器会自动把它作为资源输出，直接用 `<script>` 标签则不行。
+- 使用旧式模块解析（`moduleResolution` 为 `node`）的 TypeScript 项目，通过 `typesVersions` 字段而不是 `exports` 映射来解析该子路径；使用 `node16`、`nodenext` 或 `bundler` 解析的项目则直接读取 `exports` 映射。
 
 ## 本地开发
 
@@ -801,12 +851,14 @@ build 先检查类型，再清理项目内 dist 目录并生成 JavaScript 和�
 | --- | --- |
 | `npm run build:umd` | 用 Vite 构建浏览器产物到 dist-umd |
 | `npm run build:all` | 同时构建 npm 包与浏览器产物 |
+| `npm run build:wasm` | 构建 Rust 内核的 web 与 node 两套产物 |
+| `npm run check:wasm-bundle` | 用 Vite 构建探针包，内核初始化被摇掉时报错 |
 | `npm run lint` | 对 TypeScript 源码和构建脚本运行 ESLint |
 | `npm run format` | 使用 Prettier 重写源码 |
 | `npm run release -- patch` | 升版本、构建、打包、发布并推送 |
 | `npm run versionAdd` | 仅升补丁版本号 |
 
-.github/workflows/ci.yml 中的 GitHub Actions 工作流会在 Node 20.19、22.12、24 上执行安装、检查、构建、测试并校验打包内容。
+.github/workflows/ci.yml 中的 GitHub Actions 工作流会在 Node 20.19、22.12、24 上执行安装、检查、构建、测试、校验内核仍能通过打包、并校验打包内容。
 
 ### 浏览器产物
 
@@ -864,6 +916,43 @@ src/
 ├── unit/        # 长度、重量、温度换算
 └── index.ts     # 汇总导出
 ```
+
+### Rust 与 WebAssembly 内核
+
+Rust 内核源码在 `rust/`，对外暴露的薄封装在 `wasm/`：
+
+```text
+rust/                 # Rust crate
+├── Cargo.toml        #   package 与 release profile 写在同一个文件
+├── Cargo.lock        #   提交入库，保证 Rust 构建可复现
+├── src/lib.rs        #   内核实现
+└── pkg/{web,node}/   #   编译产物，提交入库
+wasm/                 # 手写封装
+├── index.cjs         #   CommonJS 入口
+├── index.mjs         #   ES module 入口，Node 与打包器通用
+└── index.d.ts        #   手写类型声明
+```
+
+构建内核需要 Rust 工具链、`wasm32-unknown-unknown` target 和 wasm-pack：
+
+```bash
+rustup target add wasm32-unknown-unknown
+cargo install wasm-pack
+
+npm run build:wasm
+```
+
+| 命令 | 用途 |
+| --- | --- |
+| `npm run build:wasm` | 构建两套产物到 rust/pkg |
+| `npm run build:wasm:web` | 只构建 web 目标，供打包器与浏览器使用 |
+| `npm run build:wasm:node` | 只构建 node 目标 |
+| `npm run check:wasm-bundle` | 用 Vite 构建探针包，内核初始化被摇掉时报错 |
+| `cargo test` | 运行 Rust 单元测试 |
+
+`rust/pkg` 下的编译产物是提交入库的，因此 `npm run build` 只做复制到 `dist/wasm`，CI 不需要 Rust 工具链。代价是：修改 `rust/src/lib.rs` 后，必须先运行 `npm run build:wasm` 并提交新产物才会生效。当前 CI 流程无法发现这种漂移，所以请把产物和源码一起重新构建并提交。
+
+wasm-pack 自带的 binaryen 版本早于 bulk memory 提案，无法识别当前 Rust 默认生成的指令，因此在 package metadata 中关闭了优化器。这样产物体积会比开启优化时更大。
 
 ## 发布
 

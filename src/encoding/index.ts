@@ -1,4 +1,21 @@
 /**
+ * The number of bytes converted in one step.
+ *
+ * A small enough chunk keeps `String.fromCharCode.apply` below the argument
+ * limit of the JavaScript engines.
+ */
+const CHUNK_SIZE=8192
+
+/**
+ * The lowercase hexadecimal form of every byte value.
+ *
+ * The table is built on first use rather than at module load, because a
+ * module level loop is a side effect: a bundler that keeps the module has to
+ * keep the table as well, even when the consumer never converts a byte.
+ */
+let hexDigits:string[]|undefined
+
+/**
  * Converts bytes to their lowercase hexadecimal representation.
  *
  * @param bytes - The bytes to convert. Every entry must be an integer from 0 to 255.
@@ -10,7 +27,32 @@
  * bytesToHex([0, 15, 255]); // '000fff'
  * ```
  */
-export function bytesToHex(bytes:ArrayLike<number>):string{return Array.from(bytes,value=>{if(!Number.isInteger(value)||value<0||value>255)throw new RangeError('bytes must contain integers from 0 to 255');return value.toString(16).padStart(2,'0')}).join('')}
+export function bytesToHex(bytes:ArrayLike<number>):string{
+  // The language level conversion of a byte array is used when the runtime
+  // has it: Node.js does not, browsers do.
+  if(bytes instanceof Uint8Array){
+    const native=(Uint8Array.prototype as unknown as {toHex?:()=>string}).toHex
+    if(native)return native.call(bytes)
+  }
+  if(!hexDigits){
+    hexDigits=[]
+    for(let value=0;value<256;value++)hexDigits.push(value.toString(16).padStart(2,'0'))
+  }
+  const digits=hexDigits
+  const length=bytes.length
+  const parts:string[]=[]
+  for(let offset=0;offset<length;offset+=CHUNK_SIZE){
+    const end=Math.min(offset+CHUNK_SIZE,length)
+    const chunk:string[]=[]
+    for(let index=offset;index<end;index++){
+      const value=bytes[index]
+      if(!Number.isInteger(value)||value<0||value>255)throw new RangeError('bytes must contain integers from 0 to 255')
+      chunk.push(digits[value])
+    }
+    parts.push(chunk.join(''))
+  }
+  return parts.join('')
+}
 /**
  * Converts a hexadecimal string into bytes.
  *
@@ -61,7 +103,31 @@ export function bytesToUtf8(bytes:ArrayBufferView|ArrayBuffer):string{return new
  * bytesToBase64([104, 105]); // 'aGk='
  * ```
  */
-export function bytesToBase64(bytes:ArrayLike<number>):string{let binary='';for(const value of Array.from(bytes)){if(!Number.isInteger(value)||value<0||value>255)throw new RangeError('Invalid byte');binary+=String.fromCharCode(value)}return btoa(binary)}
+export function bytesToBase64(bytes:ArrayLike<number>):string{
+  // The language level conversion of a byte array is used when the runtime
+  // has it: Node.js does not, browsers do.
+  if(bytes instanceof Uint8Array){
+    const native=(Uint8Array.prototype as unknown as {toBase64?:()=>string}).toBase64
+    if(native)return native.call(bytes)
+  }
+  // Building the binary string one character at a time reallocates it on
+  // every step, which is what made this the slowest function in the package.
+  // Filling a chunk and handing it to String.fromCharCode in one call keeps
+  // the cost linear in the number of bytes.
+  const length=bytes.length
+  const parts:string[]=[]
+  for(let offset=0;offset<length;offset+=CHUNK_SIZE){
+    const end=Math.min(offset+CHUNK_SIZE,length)
+    const chunk:number[]=[]
+    for(let index=offset;index<end;index++){
+      const value=bytes[index]
+      if(!Number.isInteger(value)||value<0||value>255)throw new RangeError('Invalid byte')
+      chunk.push(value)
+    }
+    parts.push(String.fromCharCode.apply(null,chunk))
+  }
+  return btoa(parts.join(''))
+}
 /**
  * Decodes a standard base64 string into bytes.
  *

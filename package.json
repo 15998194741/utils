@@ -6,7 +6,9 @@
   "main": "dist/index.js",
   "module": "dist/esm/index.js",
   "types": "dist/index.d.ts",
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/wasm/**"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -14,13 +16,30 @@
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./wasm": {
+      "types": "./dist/wasm/index.d.ts",
+      "import": "./dist/wasm/index.mjs",
+      "require": "./dist/wasm/index.cjs",
+      "default": "./dist/wasm/index.cjs"
+    },
     "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "wasm": [
+        "dist/wasm/index.d.ts"
+      ]
+    }
   },
   "scripts": {
     "build": "node scripts/build.cjs",
     "build:umd": "tsc --noEmit -p tsconfig.node.json && vite build",
     "build:all": "npm run build && npm run build:umd",
+    "build:wasm": "npm run build:wasm:web && npm run build:wasm:node",
+    "build:wasm:web": "node scripts/wasm-pack.cjs web",
+    "build:wasm:node": "node scripts/wasm-pack.cjs nodejs",
     "test": "npm run build && node --test scripts/test.cjs",
+    "check:wasm-bundle": "node scripts/check-wasm-bundle.cjs",
     "lint": "eslint \"src/**/*.ts\" \"scripts/**/*.cjs\" \"index.ts\" \"sample.ts\" \"vite.config.mts\" \"vite.esm.config.mts\"",
     "format": "prettier --write \"src/**/*.ts\" \"scripts/**/*.cjs\" \"*.ts\" \"*.mts\"",
     "release": "node scripts/release.cjs",
