@@ -9,18 +9,28 @@ on:
 jobs:
   verify:
     name: Node ${{ matrix.node }}
-    runs-on: ubuntu-latest
+    # Pinned instead of ubuntu-latest: the latest label is migrating to Ubuntu 26,
+    # and an uncontrolled OS bump should not be able to break the build.
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         # Vite 8 requires Node ^20.19.0 || >=22.12.0.
         node: ['20.19', '22.12', '24']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node }}
+
+      # Node 20.19 ships npm 10.8.x while Node 22.12 ships npm 10.9.x and Node 24
+      # ships npm 11.x, so without this the matrix silently tests three different
+      # dependency resolvers. npm 10.8's resolver crashes on some peer dependency
+      # graphs with "Cannot read properties of null (reading 'edgesOut')".
+      # Pinning one npm keeps every job on the same resolver and the same tree.
+      - name: Use a consistent npm
+        run: npm install --global npm@11
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
@@ -41,7 +51,7 @@ jobs:
             const pkg = require('./package.json');
             const packed = JSON.parse(execSync('npm pack --json --dry-run', { encoding: 'utf8' }));
             const files = new Set(packed[0].files.map(file => file.path));
-            for (const required of [pkg.main, pkg.types, 'README.md', 'LICENSE']) {
+            for (const required of [pkg.main, pkg.module, pkg.types, 'README.md', 'LICENSE']) {
               if (!files.has(required)) throw new Error('Missing from package: ' + required);
             }
             console.log('Package contents verified: ' + files.size + ' files');
