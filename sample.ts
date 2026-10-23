@@ -34,4 +34,25 @@ import { whatType } from './src/utils/type'
  * @param {any} value
  * @returns { string } "number" | "string" | "array" | "object" | "set" | "map" | "regexp" | "boolean" | "symbol" | "function" | "Undefined" | "null" | "htmldocument" | "htmlcollection"
  */
-whatType({}) 
+whatType({})
+
+
+import { isEqual, objectIsEqual, shallowEqual } from './src/utils/equal'
+/**
+ * @param {any} left
+ * @param {any} right
+ * @returns { boolean }
+ */
+isEqual({}, {})
+/**
+ * @param {any} left
+ * @param {any} right
+ * @returns { boolean }
+ */
+objectIsEqual({}, {})
+/**
+ * @param {any} left
+ * @param {any} right
+ * @returns { boolean }
+ */
+shallowEqual({}, {})

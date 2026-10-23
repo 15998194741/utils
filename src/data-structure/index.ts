@@ -1,3 +1,9 @@
+/**
+ * A first-in first-out queue.
+ *
+ * Dequeued slots are reclaimed once the read head passes a threshold, so the backing array
+ * does not grow without bound.
+ */
 export class Queue<T> {
   private values: T[] = []; private head = 0
   enqueue(value: T): number { this.values.push(value); return this.size }
@@ -7,6 +13,9 @@ export class Queue<T> {
   clear(): void { this.values = []; this.head = 0 }
 }
 
+/**
+ * A last-in first-out stack.
+ */
 export class Stack<T> {
   private values: T[] = []
   push(value: T): number { return this.values.push(value) }
@@ -31,9 +40,14 @@ export class PriorityQueue<T> {
   get size(): number { return this.values.length }
   clear(): void { this.values.length = 0 }
   private up(index: number) { while (index) { const parent = Math.floor((index - 1) / 2); if (this.compare(this.values[parent], this.values[index]) <= 0) break; [this.values[parent], this.values[index]] = [this.values[index], this.values[parent]]; index = parent } }
-  private down(index: number) { for (;;) { let best = index, left = index * 2 + 1, right = left + 1; if (left < this.size && this.compare(this.values[left], this.values[best]) < 0) best = left; if (right < this.size && this.compare(this.values[right], this.values[best]) < 0) best = right; if (best === index) return; [this.values[index], this.values[best]] = [this.values[best], this.values[index]]; index = best } }
+  private down(index: number) { for (;;) { let best = index; const left = index * 2 + 1, right = left + 1; if (left < this.size && this.compare(this.values[left], this.values[best]) < 0) best = left; if (right < this.size && this.compare(this.values[right], this.values[best]) < 0) best = right; if (best === index) return; [this.values[index], this.values[best]] = [this.values[best], this.values[index]]; index = best } }
 }
 
+/**
+ * A cache that keeps at most `capacity` entries and evicts the least recently used one.
+ *
+ * Reading an entry with `get` marks it as recently used.
+ */
 export class LRUCache<K, V> {
   private values = new Map<K, V>()
   constructor(readonly capacity: number) { if (!Number.isInteger(capacity) || capacity <= 0) throw new RangeError('capacity must be a positive integer') }

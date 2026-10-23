@@ -21,6 +21,15 @@ export function isEqual(left: any, right: any): boolean {
   return equal(left, right)
 }
 
+/**
+ * Compares the enumerable own properties of two values one level deep.
+ *
+ * Nested objects and arrays are compared by identity, not by content.
+ *
+ * @param left - The first value.
+ * @param right - The second value.
+ * @returns `true` when both values have the same own enumerable keys with identical values.
+ */
 export function shallowEqual(left: any, right: any): boolean {
   if (Object.is(left, right)) return true
   if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false
@@ -31,11 +40,37 @@ export function shallowEqual(left: any, right: any): boolean {
   return a.length === b.length && a.every(key => Object.prototype.propertyIsEnumerable.call(right, key) && Object.is(left[key], right[key]))
 }
 
+/**
+ * Checks whether every given array is deeply equal to the one before it.
+ *
+ * @param arrays - The arrays to compare, in order.
+ * @returns `true` when all of them are deeply equal.
+ */
 export function arrayIsEqual(...arrays: readonly any[][]): boolean {
   return arrays.every((array, index) => index === 0 || isEqual(arrays[index - 1], array))
 }
 // Legacy names remain available.
+/**
+ * @deprecated Misspelled legacy name. Use {@link isEqual} instead.
+ */
 export const isRqual = isEqual
+/**
+ * @deprecated Misspelled legacy name. Use {@link arrayIsEqual} instead.
+ */
 export const arrayIsRqual = arrayIsEqual
+/**
+ * @deprecated Misspelled legacy name. Use {@link shallowEqual} instead.
+ */
 export const arrayIsRqualShallow = shallowEqual
-export const objectIsRqualShallow = isEqual
+/**
+ * Deeply compares two objects, including nested plain objects and arrays.
+ *
+ * Behaves exactly like {@link isEqual}. The separate name exists for callers
+ * that only ever compare objects.
+ */
+export const objectIsEqual = isEqual
+/**
+ * @deprecated Misspelled legacy name that also misdescribed the comparison depth.
+ * Use {@link objectIsEqual} instead.
+ */
+export const objectIsRqualShallow = objectIsEqual

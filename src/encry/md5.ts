@@ -108,7 +108,22 @@ var uTF8Encode = function (string) {
   return output;
 };
 
-function md5(string:string) {
+/**
+ * Computes the MD5 digest of a string.
+ *
+ * MD5 is a fast checksum, not a cryptographic hash. Use it for file
+ * fingerprints, cache keys, and change detection. Do not use it for password
+ * storage, signatures, or anything that needs collision resistance.
+ *
+ * @param string - The text to hash. Non-ASCII text is encoded as UTF-8.
+ * @returns The digest as 32 lowercase hexadecimal characters.
+ *
+ * @example
+ * ```ts
+ * md5('hello world'); // '5eb63bbbe01eeed093cb22bb8f5acdc3'
+ * ```
+ */
+export function md5(string: string): string {
   var x = Array();
   var k: any, AA: any, BB: any, CC: any, DD: any, a: any, b: any, c: any, d: any;
   var S11 = 7,
@@ -210,5 +225,3 @@ function md5(string:string) {
   var tempValue = wordToHex(a) + wordToHex(b) + wordToHex(c) + wordToHex(d);
   return tempValue.toLowerCase();
 }
-
-export default md5

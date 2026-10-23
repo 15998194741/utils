@@ -1,7 +1,17 @@
+/**
+ * Maps event names to the tuple of arguments their listeners receive.
+ */
 export type EventMap = Record<PropertyKey, readonly unknown[]>
 
+type EventListener = (...args: readonly any[]) => void
+
+/**
+ * A typed event emitter.
+ *
+ * Listener argument tuples are inferred from the event map.
+ */
 export class EventEmitter<Events extends EventMap> {
-  private listeners = new Map<keyof Events, Set<Function>>()
+  private listeners = new Map<keyof Events, Set<EventListener>>()
 
   on<K extends keyof Events>(event: K, listener: (...args: Events[K]) => void): () => void {
     let set = this.listeners.get(event)
@@ -24,6 +34,9 @@ export class EventEmitter<Events extends EventMap> {
     for (const listener of Array.from(set)) (listener as (...values: Events[K]) => void)(...args)
     return true
   }
-  clear(event?: keyof Events): void { event === undefined ? this.listeners.clear() : this.listeners.delete(event) }
+  clear(event?: keyof Events): void {
+    if (event === undefined) this.listeners.clear()
+    else this.listeners.delete(event)
+  }
   listenerCount(event: keyof Events): number { return this.listeners.get(event)?.size ?? 0 }
 }

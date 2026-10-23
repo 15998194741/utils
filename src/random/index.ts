@@ -4,7 +4,22 @@ function unit(random: () => number): number {
   return value
 }
 
-/** Returns an integer in the inclusive range [min, max]. */
+/**
+ * Returns an integer in the inclusive range [min, max].
+ *
+ * @param min - The lower bound. Must be a safe integer.
+ * @param max - The upper bound. Must be a safe integer and not below `min`.
+ * @param random - The randomness source. Default: `Math.random`. Must return a value in `[0, 1)`.
+ * @returns A random integer between `min` and `max`.
+ * @throws {RangeError} When the bounds are not safe integers, `min > max`, the range is too large,
+ * or `random` returns a value outside `[0, 1)`.
+ *
+ * @example
+ * ```ts
+ * randomInt(1, 10); // an integer between 1 and 10
+ * randomInt(1, 10, () => 0.5); // 6
+ * ```
+ */
 export function randomInt(min: number, max: number, random = Math.random): number {
   if (!Number.isSafeInteger(min) || !Number.isSafeInteger(max) || min > max) throw new RangeError('Expected safe integers with min <= max')
   const range = max - min + 1
@@ -12,6 +27,20 @@ export function randomInt(min: number, max: number, random = Math.random): numbe
   return min + Math.floor(unit(random) * range)
 }
 
+/**
+ * Returns a shuffled copy of the values.
+ *
+ * @param values - The source array. It is not modified.
+ * @param random - The randomness source. Default: `Math.random`. Must return a value in `[0, 1)`.
+ * @returns A new array with the values in random order.
+ * @throws {RangeError} When `random` returns a value outside `[0, 1)`.
+ *
+ * @example
+ * ```ts
+ * shuffle([1, 2, 3]); // e.g. [2, 3, 1]
+ * shuffle([1, 2, 3], () => 0); // [2, 3, 1]
+ * ```
+ */
 export function shuffle<T>(values: readonly T[], random = Math.random): T[] {
   const result = values.slice()
   for (let i = result.length - 1; i > 0; i--) {
@@ -21,11 +50,37 @@ export function shuffle<T>(values: readonly T[], random = Math.random): T[] {
   return result
 }
 
+/**
+ * Picks one value at random from the array.
+ *
+ * @param values - The source array. It is not modified.
+ * @param random - The randomness source. Default: `Math.random`. Must return a value in `[0, 1)`.
+ * @returns A randomly selected value, or `undefined` when the array is empty.
+ * @throws {RangeError} When `random` returns a value outside `[0, 1)`.
+ *
+ * @example
+ * ```ts
+ * sample([1, 2, 3]); // one of 1, 2, 3
+ * sample([]); // undefined
+ * ```
+ */
 export function sample<T>(values: readonly T[], random = Math.random): T | undefined {
   return values.length ? values[randomInt(0, values.length - 1, random)] : undefined
 }
 
-/** Generates an RFC 4122 version 4 UUID with cryptographically secure browser randomness. */
+/**
+ * Generates a random UUID.
+ *
+ * Generates an RFC 4122 version 4 UUID with cryptographically secure browser randomness.
+ *
+ * @returns A UUID string in the canonical `8-4-4-4-12` form.
+ * @throws {Error} When `crypto.getRandomValues` is unavailable.
+ *
+ * @example
+ * ```ts
+ * uuid(); // e.g. 'ab4c11ef-e8cc-4584-b2fd-8b8cda2d8ee2'
+ * ```
+ */
 export function uuid(): string {
   if (typeof crypto === 'undefined' || typeof crypto.getRandomValues !== 'function') throw new Error('Secure crypto.getRandomValues is unavailable')
   if (typeof crypto.randomUUID === 'function') return crypto.randomUUID()

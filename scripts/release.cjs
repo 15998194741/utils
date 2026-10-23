@@ -59,7 +59,7 @@ try {
     const packDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'index-system-release-'));
     const [packed] = JSON.parse(npm(['pack', '--json', '--pack-destination', packDirectory], true));
     const files = new Set(packed.files.map(file => file.path));
-    for (const required of [pkg.main, pkg.types, 'README.md', 'LICENSE']) {
+    for (const required of [pkg.main, pkg.module, pkg.types, 'README.md', 'LICENSE']) {
       if (!required || !files.has(required.replace(/^\.\//, ''))) throw new Error(`Package is missing ${required}.`);
     }
     console.log(`Publishing ${pkg.name}@${version}: ${packed.filename}`);

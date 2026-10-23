@@ -36,6 +36,21 @@ test('equality handles null, key order, cycles and shallow comparison', () => {
   assert.equal(u.shallowEqual({x:{}}, {x:{}}), false);
   assert.equal(u.isEqual(new Array(1), []), false);
 });
+test('objectIsEqual deep-compares objects and legacy aliases stay compatible', () => {
+  assert.ok(u.objectIsEqual({a:{b:1}}, {a:{b:1}}));
+  assert.equal(u.objectIsEqual({a:{b:1}}, {a:{b:2}}), false);
+  assert.equal(u.objectIsEqual({a:{b:1}}, {a:{b:1}, c:undefined}), false);
+  // Legacy aliases keep their historical targets, including the deep comparison
+  // behind the misleading objectIsRqualShallow name.
+  assert.equal(u.objectIsRqualShallow, u.objectIsEqual);
+  assert.equal(u.objectIsRqualShallow({a:{b:1}}, {a:{b:1}}), true);
+  assert.equal(u.isRqual, u.isEqual);
+  assert.equal(u.arrayIsRqual, u.arrayIsEqual);
+  assert.equal(u.arrayIsRqualShallow, u.shallowEqual);
+  assert.equal(u.base64Tofile, u.base64ToFile);
+  assert.equal(u.bolbToFile, u.blobToFile);
+  assert.equal(u.fileToBolb, u.fileToBlob);
+});
 test('debounce, throttle and once controls', async () => {
   const calls = []; const context = {base:10};
   const d = u.debounce(function(n) { calls.push(this.base+n); return this.base+n; }, 5);
@@ -242,4 +257,12 @@ test('state machines apply guards, actions and subscriptions',()=>{const machine
 test('diff creates immutable patches and array set differences',()=>{const left={a:1,n:{x:1},remove:true},right={a:2,n:{x:1,y:2}};const patch=u.objectDiff(left,right);assert.deepEqual(u.applyPatch(left,patch),right);assert.deepEqual(left,{a:1,n:{x:1},remove:true});assert.deepEqual(u.arrayDiff([{x:1},{x:2}],[{x:2},{x:3}]),{added:[{x:3}],removed:[{x:1}]});assert.throws(()=>u.applyPatch({},[{op:'add',path:['missing','x'],value:1}]),/Invalid/)});
 test('scheduler respects concurrency, priority for queued work, and idle',async()=>{const scheduler=u.createScheduler(1),order=[];let release;const gate=new Promise(resolve=>release=resolve);const first=scheduler.add(async()=>{order.push('first');await gate});const low=scheduler.add(()=>order.push('low'),0);const high=scheduler.add(()=>order.push('high'),10);assert.equal(scheduler.active,1);assert.equal(scheduler.pending,2);release();await Promise.all([first,low,high]);await scheduler.onIdle();assert.deepEqual(order,['first','high','low']);assert.throws(()=>u.createScheduler(0),RangeError)});
 test('unit conversions use documented base factors',()=>{assert.equal(u.convertLength(1,'km','m'),1000);assert.ok(Math.abs(u.convertLength(12,'in','ft')-1)<1e-12);assert.equal(u.convertWeight(1,'kg','g'),1000);assert.equal(u.celsiusToFahrenheit(100),212);assert.equal(u.fahrenheitToCelsius(32),0)});
-test('CommonJS and ESM package entries expose matching functions',async()=>{const esm=await import(require('node:url').pathToFileURL(require('node:path').resolve('dist/index.mjs')).href+'?test');assert.equal(typeof esm.unique,'function');assert.deepEqual(esm.unique([1,1,2]),u.unique([1,1,2]));assert.equal(esm.default,'欢迎使用')});
+test('CommonJS and ESM package entries expose matching functions',async()=>{const esm=await import(require('node:url').pathToFileURL(require('node:path').resolve('dist/esm/index.js')).href+'?test');assert.equal(typeof esm.unique,'function');assert.deepEqual(esm.unique([1,1,2]),u.unique([1,1,2]));assert.equal(esm.default,'欢迎使用');const cjsNames=Object.keys(u).filter(name=>name!=='default').sort();const esmNames=Object.keys(esm).filter(name=>name!=='default').sort();assert.deepEqual(esmNames,cjsNames)});
+test('the ES module entry uses static exports so bundlers can tree-shake it',()=>{const fs=require('node:fs');const source=fs.readFileSync(require('node:path').resolve('dist/esm/index.js'),'utf8');assert.ok(!source.includes('__exportStar'),'the ESM build must not re-export through a runtime loop');assert.ok(!/export const \{[^}]*\} =/.test(source),'the ESM build must not destructure exports from a namespace object');assert.ok(/^export \{/m.test(source),'the ESM build must use static export statements');assert.ok(source.includes("from 'xlsx'")||source.includes('from "xlsx"'),'xlsx must stay an external import');assert.equal(require('node:fs').readFileSync(require('node:path').resolve('dist/esm/package.json'),'utf8').includes('"module"'),true)});
+
+// Additional suites live in their own files.
+require('./test.guard-search.cjs');
+require('./test.path.cjs');
+require('./test.object.cjs');
+require('./test.array.cjs');
+require('./test.function.cjs');

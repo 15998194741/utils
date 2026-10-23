@@ -1,3 +1,6 @@
+/**
+ * The subset of the Web Storage API that {@link createStorage} relies on.
+ */
 export interface StorageLike {
   getItem(key: string): string | null
   setItem(key: string, value: string): void

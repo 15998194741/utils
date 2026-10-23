@@ -3,7 +3,8 @@
   "compilerOptions": {
     "allowJs": false,
     "rootDir": ".",
-    "noEmitOnError": true
+    "noEmitOnError": true,
+    "removeComments": false
   },
   "include": ["index.ts", "src/**/*.ts"]
 }

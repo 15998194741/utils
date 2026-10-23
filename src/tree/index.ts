@@ -1,4 +1,10 @@
+/**
+ * A node of a tree, combining the original value with its child nodes.
+ */
 export type TreeNode<T> = T & { children: TreeNode<T>[] }
+/**
+ * The accessors used to build a tree from a flat list.
+ */
 export interface TreeOptions<T, K> {
   getId: (value: T) => K
   getParentId: (value: T) => K | null | undefined

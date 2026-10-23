@@ -9,7 +9,8 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "experimentalDecorators": true,
-    "removeComments": true, 
+    "removeComments": true,
+    "newLine": "lf",
     "emitDecoratorMetadata": true,
     "inlineSourceMap": true,
     "noImplicitThis": true,
@@ -24,7 +25,10 @@
   },
   "exclude": [
     "dist",
+    "dist-umd",
     "node_modules",
-    "test"
+    "test",
+    "vite.config.mts",
+    "vite.esm.config.mts"
   ]
 }

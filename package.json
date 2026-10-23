@@ -4,12 +4,13 @@
   "description": "一些实用工具",
   "private": false,
   "main": "dist/index.js",
-  "module": "dist/index.mjs",
+  "module": "dist/esm/index.js",
   "types": "dist/index.d.ts",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
+      "import": "./dist/esm/index.js",
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
@@ -17,23 +18,26 @@
   },
   "scripts": {
     "build": "node scripts/build.cjs",
+    "build:umd": "tsc --noEmit -p tsconfig.node.json && vite build",
+    "build:all": "npm run build && npm run build:umd",
     "test": "npm run build && node --test scripts/test.cjs",
+    "lint": "eslint \"src/**/*.ts\" \"scripts/**/*.cjs\" \"index.ts\" \"sample.ts\" \"vite.config.mts\" \"vite.esm.config.mts\"",
+    "format": "prettier --write \"src/**/*.ts\" \"scripts/**/*.cjs\" \"*.ts\" \"*.mts\"",
+    "release": "node scripts/release.cjs",
     "versionAdd": "npm version patch"
   },
   "author": "fancy-xiaolu",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^5.10.1",
-    "@typescript-eslint/parser": "^5.10.1",
-    "eslint": "^8.7.0",
-    "eslint-config-prettier": "^8.3.0",
-    "eslint-plugin-prettier": "^4.0.0",
-    "prettier": "^2.5.1",
-    "ts-lint": "^4.5.1",
-    "ts-loader": "^9.2.6",
+    "@eslint/js": "^9.0.0",
+    "@types/node": "^20.19.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^10.0.0",
+    "prettier": "^3.0.0",
     "typescript": "^4.5.5",
-    "webpack": "^5.68.0",
-    "webpack-cli": "^4.9.2"
+    "vite": "^8.3.5"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
@@ -42,7 +46,7 @@
     "dist/**/*"
   ],
   "dependencies": {
-    "xlsx": "^0.17.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "repository": {
     "type": "git",
